@@ -39,10 +39,11 @@ const REVIEWS = [
   },
 ]
 
-export default function WatchPage({ params }: { params: { id: string } }) {
+export default async function WatchPage({ params }: { params: Promise<{ id: string }> }) {
   // Mock content data - will be fetched from backend later
+  const { id } = await params
   const content = {
-    id: params.id,
+    id: id,
     title: "블랙 호라이즌",
     year: 2026,
     rating: "15+",
