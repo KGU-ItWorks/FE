@@ -1,8 +1,26 @@
+"use client"
+
+import { useEffect } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Play, Info } from "lucide-react"
+import { useAuth } from "@/contexts/AuthContext"
 
 export default function LandingPage() {
+  const router = useRouter()
+  const { isAuthenticated, isLoading } = useAuth()
+
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.push("/browse")
+    }
+  }, [isAuthenticated, isLoading, router])
+
+  if (isLoading || isAuthenticated) {
+    return null
+  }
+
   return (
     <div className="relative min-h-screen bg-background">
       {/* Header */}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Search, Bell, ChevronDown, Upload } from "lucide-react"
@@ -13,17 +13,30 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useAuth } from "@/contexts/AuthContext"
 
 export function BrowseHeader() {
   const router = useRouter()
+  const { user, logout } = useAuth()
   const [isScrolled, setIsScrolled] = useState(false)
 
   // Handle scroll effect
-  if (typeof window !== "undefined") {
-    window.addEventListener("scroll", () => {
+  useEffect(() => {
+    const handleScroll = () => {
       setIsScrolled(window.scrollY > 0)
-    })
+    }
+
+    window.addEventListener("scroll", handleScroll)
+    return () => window.removeEventListener("scroll", handleScroll)
+  }, [])
+
+  const handleLogout = async () => {
+    await logout()
   }
+
+  // 사용자 이름의 첫 글자를 Avatar fallback으로 사용
+  const userInitial = user?.nickname?.charAt(0).toUpperCase() || "U"
+  const userName = user?.nickname || "사용자"
 
   return (
     <header
@@ -72,27 +85,29 @@ export function BrowseHeader() {
             <Bell className="h-5 w-5" />
           </Button>
 
-          <DropdownMenu>
+          <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="flex items-center gap-2 px-2">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src="/profile-avatar-1.jpg" alt="Profile" />
-                  <AvatarFallback>U</AvatarFallback>
+                  <AvatarFallback className="bg-primary text-primary-foreground">{userInitial}</AvatarFallback>
                 </Avatar>
                 <ChevronDown className="h-4 w-4 text-foreground" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48 bg-black/95 border-border">
-              <DropdownMenuItem onClick={() => router.push("/profiles")} className="cursor-pointer">
-                프로필 전환
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push("/profiles/manage")} className="cursor-pointer">
-                프로필 관리
-              </DropdownMenuItem>
+            <DropdownMenuContent align="end" className="w-56 bg-black/95 border-border">
+              {user && (
+                <>
+                  <div className="px-2 py-2 text-sm">
+                    <p className="font-medium">{userName}</p>
+                    <p className="text-xs text-muted-foreground">{user.email}</p>
+                  </div>
+                  <DropdownMenuSeparator className="bg-border" />
+                </>
+              )}
               <DropdownMenuItem className="cursor-pointer">계정</DropdownMenuItem>
               <DropdownMenuItem className="cursor-pointer">고객 센터</DropdownMenuItem>
               <DropdownMenuSeparator className="bg-border" />
-              <DropdownMenuItem onClick={() => router.push("/")} className="cursor-pointer">
+              <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
                 로그아웃
               </DropdownMenuItem>
             </DropdownMenuContent>
