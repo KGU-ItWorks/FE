@@ -4,6 +4,7 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { BrowseHeader } from "@/components/browse-header";
 import { videoApi, type Video } from "@/lib/api";
+import { getCategoryBySlug } from "@/lib/categories";
 import { Play, Clock, Eye, ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -13,11 +14,16 @@ export default function CategoryPage({
   params: Promise<{ slug: string }>;
 }) {
   const resolvedParams = use(params);
-  const categorySlug = decodeURIComponent(resolvedParams.slug);
+  const categorySlug = resolvedParams.slug; // 영어 slug (series, movies, all 등)
   const router = useRouter();
-  
+
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // slug로 카테고리 정보 가져오기
+  const category = getCategoryBySlug(categorySlug);
+  const categoryName = category?.name || categorySlug;
+  const categoryApiValue = category?.apiValue || categorySlug;
 
   useEffect(() => {
     loadVideos();
@@ -27,12 +33,13 @@ export default function CategoryPage({
     try {
       setLoading(true);
       const response = await videoApi.getPublishedVideos(0, 50);
-      
+
       // 카테고리 필터링
       let filtered = response.content.filter(v => v.status === "COMPLETED");
-      
-      if (categorySlug !== "전체") {
-        filtered = filtered.filter(v => v.category === categorySlug);
+
+      // "전체" 카테고리가 아니면 필터링
+      if (categoryApiValue !== "전체") {
+        filtered = filtered.filter(v => v.category === categoryApiValue);
       }
       
       setVideos(filtered);
@@ -81,7 +88,7 @@ export default function CategoryPage({
             뒤로 가기
           </button>
           
-          <h1 className="text-4xl font-bold mb-2">{categorySlug}</h1>
+          <h1 className="text-4xl font-bold mb-2">{categoryName}</h1>
           <p className="text-muted-foreground">
             {videos.length}개의 영상
           </p>

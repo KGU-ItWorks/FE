@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { BrowseHeader } from '@/components/browse-header'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -26,13 +25,12 @@ import {
 } from "@/components/ui/alert-dialog"
 import { apiClient } from '@/lib/api-client'
 import { useToast } from '@/hooks/use-toast'
-import { 
-  Video, 
-  Users, 
-  Eye, 
-  HardDrive, 
-  CheckCircle, 
-  XCircle, 
+import {
+  Video,
+  Eye,
+  HardDrive,
+  CheckCircle,
+  XCircle,
   Clock,
   Trash2,
   Loader2
@@ -68,7 +66,6 @@ export default function AdminDashboard() {
   const [rejectReason, setRejectReason] = useState('')
 
   useEffect(() => {
-    checkAuth()
     loadDashboard()
   }, [])
 
@@ -76,54 +73,38 @@ export default function AdminDashboard() {
     loadVideos()
   }, [page, filter])
 
-  const checkAuth = () => {
-    const token = localStorage.getItem('token')
-    if (!token) {
-      router.push('/login')
-    }
-  }
-
   const loadDashboard = async () => {
     try {
       const data = await apiClient.get<DashboardStats>('/api/v1/admin/videos/dashboard/stats')
       setStats(data)
     } catch (error) {
-      console.error('Failed to load dashboard:', error)
-      
-      if (error instanceof Error && error.message.includes('인증')) {
-        toast({
-          title: '권한 없음',
-          description: '관리자 권한이 필요합니다',
-          variant: 'destructive',
-        })
-        router.push('/browse')
-      } else {
-        toast({
-          title: '오류',
-          description: '대시보드 통계를 불러오는데 실패했습니다',
-          variant: 'destructive',
-        })
-      }
+      toast({
+        title: '오류',
+        description: '대시보드 통계를 불러오는데 실패했습니다',
+        variant: 'destructive',
+      })
     }
   }
 
   const loadVideos = async () => {
     try {
       setLoading(true)
-      
       let url = `/api/v1/admin/videos?page=${page}&size=20`
       if (filter !== 'all') {
         url += `&approvalStatus=${filter.toUpperCase()}`
       }
 
+      console.log('[Dashboard] Loading videos with URL:', url)
       const data = await apiClient.get<any>(url)
-      setVideos(data.content)
-      setTotalPages(data.totalPages)
+      console.log('[Dashboard] Videos loaded:', data)
+      
+      setVideos(data.content || [])
+      setTotalPages(data.totalPages || 0)
     } catch (error) {
-      console.error('Failed to load videos:', error)
+      console.error('[Dashboard] Failed to load videos:', error)
       toast({
         title: '오류',
-        description: error instanceof Error ? error.message : '영상 목록을 불러오는데 실패했습니다',
+        description: '영상 목록을 불러오는데 실패했습니다',
         variant: 'destructive',
       })
     } finally {
@@ -133,109 +114,50 @@ export default function AdminDashboard() {
 
   const handleApprove = async () => {
     if (!approveVideoId) return
-
-    try {
-      await apiClient.post(`/api/v1/admin/videos/${approveVideoId}/approve`)
-
-      toast({
-        title: '성공',
-        description: '영상이 승인되었습니다',
-      })
-
-      loadDashboard()
-      loadVideos()
-    } catch (error) {
-      console.error('Failed to approve video:', error)
-      toast({
-        title: '오류',
-        description: error instanceof Error ? error.message : '영상 승인 중 오류가 발생했습니다',
-        variant: 'destructive',
-      })
-    } finally {
-      setApproveVideoId(null)
-    }
+    await apiClient.post(`/api/v1/admin/videos/${approveVideoId}/approve`)
+    setApproveVideoId(null)
+    loadDashboard()
+    loadVideos()
   }
 
   const handleReject = async () => {
-    if (!rejectVideoId || !rejectReason.trim()) {
-      toast({
-        title: '입력 오류',
-        description: '거부 사유를 입력해주세요',
-        variant: 'destructive',
-      })
-      return
-    }
-
-    try {
-      await apiClient.post(`/api/v1/admin/videos/${rejectVideoId}/reject?reason=${encodeURIComponent(rejectReason)}`)
-
-      toast({
-        title: '성공',
-        description: '영상이 거부되었습니다',
-      })
-
-      loadDashboard()
-      loadVideos()
-    } catch (error) {
-      console.error('Failed to reject video:', error)
-      toast({
-        title: '오류',
-        description: error instanceof Error ? error.message : '영상 거부 중 오류가 발생했습니다',
-        variant: 'destructive',
-      })
-    } finally {
-      setRejectVideoId(null)
-      setRejectReason('')
-    }
+    if (!rejectVideoId || !rejectReason.trim()) return
+    await apiClient.post(
+        `/api/v1/admin/videos/${rejectVideoId}/reject?reason=${encodeURIComponent(rejectReason)}`
+    )
+    setRejectVideoId(null)
+    setRejectReason('')
+    loadDashboard()
+    loadVideos()
   }
 
   const handleDelete = async () => {
     if (!deleteVideoId) return
-
-    try {
-      await apiClient.delete(`/api/v1/admin/videos/${deleteVideoId}`)
-
-      toast({
-        title: '성공',
-        description: '영상이 삭제되었습니다',
-      })
-
-      loadDashboard()
-      loadVideos()
-    } catch (error) {
-      console.error('Failed to delete video:', error)
-      toast({
-        title: '오류',
-        description: error instanceof Error ? error.message : '영상 삭제 중 오류가 발생했습니다',
-        variant: 'destructive',
-      })
-    } finally {
-      setDeleteVideoId(null)
-    }
+    await apiClient.delete(`/api/v1/admin/videos/${deleteVideoId}`)
+    setDeleteVideoId(null)
+    loadDashboard()
+    loadVideos()
   }
 
   if (!stats) {
     return (
-      <div className="min-h-screen bg-background">
-        <BrowseHeader />
-        <div className="container mx-auto flex min-h-[60vh] items-center justify-center px-4 py-24">
+        <div className="flex min-h-screen items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-      </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <BrowseHeader />
-
-      <div className="container mx-auto px-4 py-24 md:px-12">
-        <h1 className="mb-8 text-4xl font-bold">관리자 대시보드</h1>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">관리자 대시보드</h1>
+          <p className="text-muted-foreground">시스템 통계 및 영상 관리</p>
+        </div>
 
         {/* Stats Cards */}
-        <div className="mb-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">전체 영상</CardTitle>
               <Video className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
@@ -248,7 +170,7 @@ export default function AdminDashboard() {
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">승인 대기</CardTitle>
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
@@ -261,49 +183,53 @@ export default function AdminDashboard() {
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">총 조회수</CardTitle>
               <Eye className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalViews.toLocaleString()}</div>
+              <div className="text-2xl font-bold">
+                {stats.totalViews.toLocaleString()}
+              </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">저장 용량</CardTitle>
               <HardDrive className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalStorageGB.toFixed(2)} GB</div>
+              <div className="text-2xl font-bold">
+                {stats.totalStorageGB.toFixed(2)} GB
+              </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Filters */}
-        <div className="mb-6 flex gap-2">
+        <div className="flex gap-2">
           <Button
-            variant={filter === 'all' ? 'default' : 'outline'}
-            onClick={() => setFilter('all')}
+              variant={filter === 'all' ? 'default' : 'outline'}
+              onClick={() => setFilter('all')}
           >
             전체
           </Button>
           <Button
-            variant={filter === 'pending' ? 'default' : 'outline'}
-            onClick={() => setFilter('pending')}
+              variant={filter === 'pending' ? 'default' : 'outline'}
+              onClick={() => setFilter('pending')}
           >
             대기 중 ({stats.pendingApprovalCount})
           </Button>
           <Button
-            variant={filter === 'approved' ? 'default' : 'outline'}
-            onClick={() => setFilter('approved')}
+              variant={filter === 'approved' ? 'default' : 'outline'}
+              onClick={() => setFilter('approved')}
           >
             승인됨 ({stats.approvedCount})
           </Button>
           <Button
-            variant={filter === 'rejected' ? 'default' : 'outline'}
-            onClick={() => setFilter('rejected')}
+              variant={filter === 'rejected' ? 'default' : 'outline'}
+              onClick={() => setFilter('rejected')}
           >
             거부됨 ({stats.rejectedCount})
           </Button>
@@ -318,6 +244,10 @@ export default function AdminDashboard() {
             {loading ? (
               <div className="flex justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : videos.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">영상이 없습니다</p>
               </div>
             ) : (
               <>
@@ -351,7 +281,7 @@ export default function AdminDashboard() {
                             <Badge variant="destructive">거부됨</Badge>
                           )}
                         </TableCell>
-                        <TableCell>{video.viewCount.toLocaleString()}</TableCell>
+                        <TableCell>{video.viewCount?.toLocaleString() || 0}</TableCell>
                         <TableCell>
                           <div className="flex gap-2">
                             {video.approvalStatus === 'PENDING' && (
@@ -415,7 +345,6 @@ export default function AdminDashboard() {
             )}
           </CardContent>
         </Card>
-      </div>
 
       {/* Approve Dialog */}
       <AlertDialog open={approveVideoId !== null} onOpenChange={() => setApproveVideoId(null)}>
@@ -480,6 +409,6 @@ export default function AdminDashboard() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+      </div>
   )
 }

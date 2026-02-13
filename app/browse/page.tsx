@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BrowseHeader } from "@/components/browse-header";
+import { HeroVideoPlayer } from "@/components/hero-video-player";
 import { videoApi, type Video } from "@/lib/api";
 import { Play, Info, Clock, Eye } from "lucide-react";
 
@@ -10,33 +11,33 @@ export default function BrowsePage() {
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [featuredVideo, setFeaturedVideo] = useState<Video | null>(null);
+  const [showVideoPlayer, setShowVideoPlayer] = useState(false);
 
   useEffect(() => {
     loadVideos();
   }, []);
 
+  useEffect(() => {
+    // 페이지 로드 후 3초 뒤에 비디오 플레이어 표시 (이미지 -> 비디오 전환)
+    const timer = setTimeout(() => {
+      setShowVideoPlayer(true);
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [featuredVideo]);
+
   const loadVideos = async () => {
     try {
       setLoading(true);
       console.log("🔍 Fetching videos from API...");
-      
+
       const response = await videoApi.getPublishedVideos(0, 20);
       console.log("✅ API Response:", response);
       console.log("📊 Total videos:", response.content.length);
-      
-      // 모든 영상 로그
-      response.content.forEach((v, idx) => {
-        console.log(`Video ${idx + 1}:`, {
-          id: v.id,
-          title: v.title,
-          status: v.status,
-          approvalStatus: v.approvalStatus
-        });
-      });
 
       setVideos(response.content);
 
-      // 첫 번째 완료된 영상을 Featured로 설정 (대소문자 무시)
+      // 첫 번째 완료된 영상을 Featured로 설정
       const completed = response.content.find(v =>
         v.status && v.status.toUpperCase() === "COMPLETED"
       );
@@ -44,15 +45,9 @@ export default function BrowsePage() {
       if (completed) {
         console.log("🎬 Featured video:", completed.title);
         setFeaturedVideo(completed);
-      } else {
-        console.warn("⚠️ No completed videos found");
-        console.log("Available statuses:", response.content.map(v => v.status));
-
-        // 완료된 영상이 없으면 첫 번째 영상을 Featured로 설정
-        if (response.content.length > 0) {
-          console.log("Using first video as featured:", response.content[0].title);
-          setFeaturedVideo(response.content[0]);
-        }
+      } else if (response.content.length > 0) {
+        console.log("Using first video as featured:", response.content[0].title);
+        setFeaturedVideo(response.content[0]);
       }
     } catch (error) {
       console.error("❌ Failed to load videos:", error);
@@ -91,11 +86,11 @@ export default function BrowsePage() {
   );
 
   const categories = [
-    { name: "전체", slug: "전체", videos: videos.slice(0, 12) }, // 모든 영상
-    { name: "시리즈", slug: "시리즈", videos: getCategoryVideos("시리즈") },
-    { name: "영화", slug: "영화", videos: getCategoryVideos("영화") },
-    { name: "컴투 대기", slug: "컴투 대기", videos: getCategoryVideos("컴투 대기") },
-    { name: "SF", slug: "SF", videos: getCategoryVideos("SF") },
+    { name: "전체", slug: "all", videos: videos.slice(0, 12) },
+    { name: "시리즈", slug: "series", videos: getCategoryVideos("시리즈") },
+    { name: "영화", slug: "movies", videos: getCategoryVideos("영화") },
+    { name: "컴투 대기", slug: "comedy", videos: getCategoryVideos("컴투 대기") },
+    { name: "SF", slug: "sf", videos: getCategoryVideos("SF") },
   ];
 
   if (loading) {
@@ -116,21 +111,35 @@ export default function BrowsePage() {
       {/* Hero Section - Featured Video */}
       {featuredVideo && (
         <div className="relative h-screen w-full">
-          {/* Background Image with Gradient */}
+          {/* Background - Video or Image */}
           <div className="absolute inset-0">
-            {featuredVideo.thumbnailUrl ? (
-              <img
-                src={`http://localhost:8080${featuredVideo.thumbnailUrl}`}
-                alt={featuredVideo.title}
-                className="h-full w-full object-cover"
+            {showVideoPlayer && (featuredVideo.s3Url || featuredVideo.cloudfrontUrl) ? (
+              <HeroVideoPlayer
+                src={featuredVideo.s3Url || featuredVideo.cloudfrontUrl}
+                poster={
+                  featuredVideo.thumbnailUrl
+                    ? `http://localhost:8080${featuredVideo.thumbnailUrl}`
+                    : undefined
+                }
               />
             ) : (
-              <div className="h-full w-full bg-gradient-to-br from-gray-800 to-gray-900" />
+              <>
+                {featuredVideo.thumbnailUrl ? (
+                  <img
+                    src={`http://localhost:8080${featuredVideo.thumbnailUrl}`}
+                    alt={featuredVideo.title}
+                    className="h-full w-full object-cover object-center"
+                    style={{ objectFit: 'cover' }}
+                  />
+                ) : (
+                  <div className="h-full w-full bg-gradient-to-br from-gray-800 to-gray-900" />
+                )}
+                {/* Dark gradient overlays for image */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-r from-black via-transparent to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black to-transparent" />
+              </>
             )}
-            {/* Dark gradient overlays */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
-            <div className="absolute inset-0 bg-gradient-to-r from-black via-transparent to-transparent" />
-            <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black to-transparent" />
           </div>
 
           {/* Hero Content */}
@@ -166,7 +175,7 @@ export default function BrowsePage() {
                 </div>
 
                 <div className="flex items-center gap-3 pt-4">
-                  <Link href={`/watch/${featuredVideo.id}`}>
+                  <Link href={`/watch/${featuredVideo.id}?autoplay=true`}>
                     <button className="flex items-center gap-2 px-8 py-3 bg-white text-black rounded hover:bg-white/90 font-semibold text-lg transition shadow-lg">
                       <Play className="h-6 w-6" fill="currentColor" />
                       재생
@@ -212,7 +221,8 @@ export default function BrowsePage() {
                             <img
                               src={`http://localhost:8080${video.thumbnailUrl}`}
                               alt={video.title}
-                              className="h-full w-full object-cover transition duration-300 group-hover:scale-110"
+                              className="h-full w-full object-cover object-center transition duration-300 group-hover:scale-110"
+                              style={{ objectFit: 'cover' }}
                             />
                           ) : (
                             <div className="flex items-center justify-center h-full bg-gradient-to-br from-gray-800 to-gray-900">

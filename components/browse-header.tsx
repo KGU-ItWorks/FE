@@ -64,37 +64,37 @@ export function BrowseHeader() {
               href="/browse" 
               className={`text-sm font-medium transition ${
                 isActive("/browse") 
-                  ? "text-white" 
+                  ? "text-white font-bold" 
                   : "text-gray-400 hover:text-gray-200"
               }`}
             >
               홈
             </Link>
             <Link 
-              href="/category/시리즈" 
+              href="/category/series" 
               className={`text-sm font-medium transition ${
-                pathname === "/category/시리즈" 
-                  ? "text-white" 
+                pathname?.includes("/category/series")
+                  ? "text-white font-bold" 
                   : "text-gray-400 hover:text-gray-200"
               }`}
             >
               시리즈
             </Link>
             <Link 
-              href="/category/영화" 
+              href="/category/movies" 
               className={`text-sm font-medium transition ${
-                pathname === "/category/영화" 
-                  ? "text-white" 
+                pathname?.includes("/category/movies")
+                  ? "text-white font-bold" 
                   : "text-gray-400 hover:text-gray-200"
               }`}
             >
               영화
             </Link>
             <Link 
-              href="/category/전체" 
+              href="/category/all" 
               className={`text-sm font-medium transition ${
-                pathname === "/category/전체" 
-                  ? "text-white" 
+                pathname?.includes("/category/all")
+                  ? "text-white font-bold" 
                   : "text-gray-400 hover:text-gray-200"
               }`}
             >
@@ -104,7 +104,7 @@ export function BrowseHeader() {
               href="/my-videos" 
               className={`text-sm font-medium transition ${
                 isActive("/my-videos") 
-                  ? "text-white" 
+                  ? "text-white font-bold" 
                   : "text-gray-400 hover:text-gray-200"
               }`}
             >
@@ -149,9 +149,47 @@ export function BrowseHeader() {
                   <DropdownMenuSeparator className="bg-gray-800" />
                 </>
               )}
+              <Link href="/my-videos">
+                <DropdownMenuItem className="cursor-pointer text-gray-300 hover:text-white">
+                  내 영상
+                </DropdownMenuItem>
+              </Link>
+              
+              {/* ROLE_USER인 경우 업로더 승급 신청 링크 */}
+              {user?.role === 'ROLE_USER' && (
+                <Link href="/upgrade-to-uploader">
+                  <DropdownMenuItem className="cursor-pointer text-yellow-400 hover:text-yellow-300">
+                    ⭐ 업로더 신청하기
+                  </DropdownMenuItem>
+                </Link>
+              )}
+              
               <DropdownMenuItem className="cursor-pointer text-gray-300 hover:text-white">계정</DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer text-gray-300 hover:text-white">고객 센터</DropdownMenuItem>
+              
+              {/* 관리자 메뉴 */}
+              {user?.role === 'ROLE_ADMIN' && (
+                <>
+                  <DropdownMenuSeparator className="bg-gray-800" />
+                  <Link href="/admin/dashboard">
+                    <DropdownMenuItem className="cursor-pointer text-red-400 hover:text-red-300">
+                      관리자 대시보드
+                    </DropdownMenuItem>
+                  </Link>
+                  <Link href="/admin/videos">
+                    <DropdownMenuItem className="cursor-pointer text-red-400 hover:text-red-300">
+                      영상 관리
+                    </DropdownMenuItem>
+                  </Link>
+                  <Link href="/admin/users">
+                    <DropdownMenuItem className="cursor-pointer text-red-400 hover:text-red-300">
+                      사용자 관리
+                    </DropdownMenuItem>
+                  </Link>
+                </>
+              )}
+              
               <DropdownMenuSeparator className="bg-gray-800" />
+              <DropdownMenuItem className="cursor-pointer text-gray-300 hover:text-white">고객 센터</DropdownMenuItem>
               <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-gray-300 hover:text-white">
                 로그아웃
               </DropdownMenuItem>
