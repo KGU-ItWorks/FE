@@ -157,6 +157,18 @@ class ApiClient {
   async delete<T>(endpoint: string, options?: FetchOptions): Promise<T> {
     return this.request<T>(endpoint, { ...options, method: "DELETE" });
   }
+
+  async patch<T>(
+    endpoint: string,
+    data?: any,
+    options?: FetchOptions
+  ): Promise<T> {
+    return this.request<T>(endpoint, {
+      ...options,
+      method: "PATCH",
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
 }
 
 export const apiClient = new ApiClient();

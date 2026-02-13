@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import VideoPlayer from "@/components/VideoPlayer";
 import { videoApi } from "@/lib/api";
 import { ArrowLeft, ThumbsUp, ThumbsDown, Plus, Volume2 } from "lucide-react";
@@ -34,6 +34,8 @@ export default function WatchPage({
   const resolvedParams = use(params);
   const videoId = parseInt(resolvedParams.id);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const autoplay = searchParams?.get('autoplay') === 'true';
 
   const [video, setVideo] = useState<Video | null>(null);
   const [loading, setLoading] = useState(true);
@@ -120,8 +122,21 @@ export default function WatchPage({
 
   return (
     <div className="min-h-screen bg-black">
-      {/* Back Button */}
-      <div className="absolute top-6 left-6 z-50">
+      {/* Video Player - Full Width */}
+      <div className="relative w-full bg-black">
+        <VideoPlayer
+          src={video.s3Url || video.cloudfrontUrl}
+          poster={
+            video.thumbnailUrl
+              ? `http://localhost:8080${video.thumbnailUrl}`
+              : undefined
+          }
+          autoplay={autoplay}
+        />
+      </div>
+
+      {/* Back Button - Overlay on Video */}
+      <div className="fixed top-6 left-6 z-50">
         <button
           onClick={() => router.push("/browse")}
           className="flex items-center gap-2 px-4 py-2 bg-black/50 hover:bg-black/70 backdrop-blur-sm text-white rounded-full transition"
@@ -131,138 +146,124 @@ export default function WatchPage({
         </button>
       </div>
 
-      {/* Video Player */}
-      <div className="relative w-full" style={{ height: "100vh" }}>
-        <VideoPlayer
-          src={video.s3Url || video.cloudfrontUrl}
-          poster={
-            video.thumbnailUrl
-              ? `http://localhost:8080${video.thumbnailUrl}`
-              : undefined
-          }
-        />
-      </div>
+      {/* Video Info Section - Below Player */}
+      <div className="max-w-6xl mx-auto px-4 md:px-8 py-8 md:py-12">
+        {/* Title & Actions */}
+        <div className="mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold text-white mb-6">
+            {video.title}
+          </h1>
 
-      {/* Video Info Section */}
-      <div className="max-w-6xl mx-auto px-4 md:px-8 pb-16 -mt-32 relative z-10">
-        <div className="bg-gradient-to-b from-transparent to-black pt-32">
-          {/* Title & Actions */}
-          <div className="mb-8">
-            <h1 className="text-4xl md:text-5xl font-bold text-white mb-6">
-              {video.title}
-            </h1>
-
-            <div className="flex items-center gap-4 flex-wrap">
-              <button className="flex items-center gap-2 px-6 py-2 bg-white text-black rounded hover:bg-gray-200 font-semibold transition">
-                <ThumbsUp className="h-5 w-5" />
-                좋아요
-              </button>
-              <button className="flex items-center gap-2 px-6 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 font-semibold transition">
-                <ThumbsDown className="h-5 w-5" />
-              </button>
-              <button className="flex items-center gap-2 px-6 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 font-semibold transition">
-                <Plus className="h-5 w-5" />
-                내가 찜한 콘텐츠
-              </button>
-            </div>
+          <div className="flex items-center gap-4 flex-wrap">
+            <button className="flex items-center gap-2 px-6 py-2 bg-white text-black rounded hover:bg-gray-200 font-semibold transition">
+              <ThumbsUp className="h-5 w-5" />
+              좋아요
+            </button>
+            <button className="flex items-center gap-2 px-6 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 font-semibold transition">
+              <ThumbsDown className="h-5 w-5" />
+            </button>
+            <button className="flex items-center gap-2 px-6 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 font-semibold transition">
+              <Plus className="h-5 w-5" />
+              내가 찜한 콘텐츠
+            </button>
           </div>
-
-          {/* Meta Info */}
-          <div className="grid md:grid-cols-3 gap-8 mb-8">
-            <div className="md:col-span-2 space-y-4">
-              <div className="flex items-center gap-4 text-sm text-gray-400">
-                <span className="text-green-500 font-semibold">
-                  {video.viewCount.toLocaleString()}회 시청
-                </span>
-                <span>{formatDate(video.createdAt)}</span>
-                {video.ageRating && (
-                  <span className="px-2 py-1 border border-gray-600 text-xs">
-                    {video.ageRating}
-                  </span>
-                )}
-                {video.durationSeconds && (
-                  <span>{formatDuration(video.durationSeconds)}</span>
-                )}
-              </div>
-
-              {video.description && (
-                <p className="text-lg text-gray-300 leading-relaxed">
-                  {video.description}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-3 text-sm">
-              <div>
-                <span className="text-gray-500">업로더: </span>
-                <span className="text-white">
-                  {video.uploader?.username || video.uploaderName}
-                </span>
-              </div>
-
-              {video.category && (
-                <div>
-                  <span className="text-gray-500">장르: </span>
-                  <span className="text-white">{video.category}</span>
-                </div>
-              )}
-
-              {video.resolution && (
-                <div>
-                  <span className="text-gray-500">화질: </span>
-                  <span className="text-white">{video.resolution}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Related Videos */}
-          {relatedVideos.length > 0 && (
-            <div className="mt-16">
-              <h2 className="text-2xl font-bold text-white mb-6">
-                비슷한 콘텐츠
-              </h2>
-              
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {relatedVideos.map(relatedVideo => (
-                  <button
-                    key={relatedVideo.id}
-                    onClick={() => router.push(`/watch/${relatedVideo.id}`)}
-                    className="group text-left"
-                  >
-                    <div className="relative aspect-video overflow-hidden rounded-md bg-gray-900 mb-3">
-                      {relatedVideo.thumbnailUrl ? (
-                        <img
-                          src={`http://localhost:8080${relatedVideo.thumbnailUrl}`}
-                          alt={relatedVideo.title}
-                          className="h-full w-full object-cover transition duration-300 group-hover:scale-110"
-                        />
-                      ) : (
-                        <div className="flex items-center justify-center h-full bg-gradient-to-br from-gray-800 to-gray-900">
-                          <Volume2 className="h-12 w-12 text-gray-600" />
-                        </div>
-                      )}
-                      
-                      {relatedVideo.durationSeconds && (
-                        <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/80 rounded text-xs text-white font-semibold">
-                          {formatDuration(relatedVideo.durationSeconds)}
-                        </div>
-                      )}
-                    </div>
-
-                    <h3 className="font-semibold text-white group-hover:text-gray-300 transition line-clamp-2 mb-1">
-                      {relatedVideo.title}
-                    </h3>
-                    
-                    <p className="text-sm text-gray-400 line-clamp-2">
-                      {relatedVideo.description}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
+
+        {/* Meta Info */}
+        <div className="grid md:grid-cols-3 gap-8 mb-8">
+          <div className="md:col-span-2 space-y-4">
+            <div className="flex items-center gap-4 text-sm text-gray-400">
+              <span className="text-green-500 font-semibold">
+                {video.viewCount.toLocaleString()}회 시청
+              </span>
+              <span>{formatDate(video.createdAt)}</span>
+              {video.ageRating && (
+                <span className="px-2 py-1 border border-gray-600 text-xs">
+                  {video.ageRating}
+                </span>
+              )}
+              {video.durationSeconds && (
+                <span>{formatDuration(video.durationSeconds)}</span>
+              )}
+            </div>
+
+            {video.description && (
+              <p className="text-lg text-gray-300 leading-relaxed">
+                {video.description}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-3 text-sm">
+            <div>
+              <span className="text-gray-500">업로더: </span>
+              <span className="text-white">
+                {video.uploader?.username || video.uploaderName}
+              </span>
+            </div>
+
+            {video.category && (
+              <div>
+                <span className="text-gray-500">장르: </span>
+                <span className="text-white">{video.category}</span>
+              </div>
+            )}
+
+            {video.resolution && (
+              <div>
+                <span className="text-gray-500">화질: </span>
+                <span className="text-white">{video.resolution}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Related Videos */}
+        {relatedVideos.length > 0 && (
+          <div className="mt-16">
+            <h2 className="text-2xl font-bold text-white mb-6">
+              비슷한 콘텐츠
+            </h2>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {relatedVideos.map(relatedVideo => (
+                <button
+                  key={relatedVideo.id}
+                  onClick={() => router.push(`/watch/${relatedVideo.id}`)}
+                  className="group text-left"
+                >
+                  <div className="relative aspect-video overflow-hidden rounded-md bg-gray-900 mb-3">
+                    {relatedVideo.thumbnailUrl ? (
+                      <img
+                        src={`http://localhost:8080${relatedVideo.thumbnailUrl}`}
+                        alt={relatedVideo.title}
+                        className="h-full w-full object-cover transition duration-300 group-hover:scale-110"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full bg-gradient-to-br from-gray-800 to-gray-900">
+                        <Volume2 className="h-12 w-12 text-gray-600" />
+                      </div>
+                    )}
+
+                    {relatedVideo.durationSeconds && (
+                      <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/80 rounded text-xs text-white font-semibold">
+                        {formatDuration(relatedVideo.durationSeconds)}
+                      </div>
+                    )}
+                  </div>
+
+                  <h3 className="font-semibold text-white group-hover:text-gray-300 transition line-clamp-2 mb-1">
+                    {relatedVideo.title}
+                  </h3>
+
+                  <p className="text-sm text-gray-400 line-clamp-2">
+                    {relatedVideo.description}
+                  </p>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

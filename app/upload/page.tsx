@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,16 +11,18 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { BrowseHeader } from "@/components/browse-header"
-import { Upload, X, FileVideo, CheckCircle, AlertCircle, Loader2 } from "lucide-react"
+import { Upload, X, FileVideo, CheckCircle, AlertCircle, Loader2, Lock } from "lucide-react"
 import Link from "next/link"
 import { videoApi } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/contexts/AuthContext"
 
 type UploadStatus = "idle" | "uploading" | "processing" | "success" | "error"
 
 export default function UploadPage() {
   const router = useRouter()
   const { toast } = useToast()
+  const { user, isLoading } = useAuth()
 
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [isDragging, setIsDragging] = useState(false)
@@ -35,6 +37,63 @@ export default function UploadPage() {
     ageRating: "",
     thumbnail: null as File | null,
   })
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push('/login')
+    }
+  }, [user, isLoading])
+
+  // 권한 체크: ROLE_USER는 업로드 불가
+  if (!isLoading && user && user.role === 'ROLE_USER') {
+    return (
+      <div className="min-h-screen bg-background">
+        <BrowseHeader />
+        <div className="container mx-auto px-4 py-24 md:px-12">
+          <div className="mx-auto max-w-2xl text-center space-y-6">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-muted">
+              <Lock className="h-10 w-10 text-muted-foreground" />
+            </div>
+            
+            <h1 className="text-4xl font-bold">업로더 권한이 필요합니다</h1>
+            
+            <p className="text-lg text-muted-foreground">
+              영상을 업로드하려면 업로더 권한이 필요합니다.<br />
+              관리자에게 승급 신청을 해주세요.
+            </p>
+
+            <div className="space-y-4 pt-4">
+              <Link href="/upgrade-to-uploader">
+                <Button size="lg" className="w-full sm:w-auto">
+                  업로더 승급 신청하기
+                </Button>
+              </Link>
+              
+              <div className="pt-4">
+                <Link href="/browse">
+                  <Button variant="outline">홈으로 돌아가기</Button>
+                </Link>
+              </div>
+            </div>
+
+            <div className="mt-8 p-6 bg-muted rounded-lg text-left">
+              <h3 className="font-semibold mb-4">💡 업로더 권한이란?</h3>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li>✓ 영상을 업로드하고 공유할 수 있는 권한입니다</li>
+                <li>✓ 관리자의 승인을 받아야 부여됩니다</li>
+                <li>✓ 승급 신청 후 1-3일 내 검토가 완료됩니다</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // 로딩 중이거나 권한이 없으면 아무것도 표시하지 않음
+  if (isLoading || !user || (user.role !== 'ROLE_UPLOADER' && user.role !== 'ROLE_ADMIN')) {
+    return null
+  }
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
