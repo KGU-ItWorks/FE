@@ -39,10 +39,7 @@ export default function LoginPage() {
       const loginSuccess = urlParams.get("login")
       const error = urlParams.get("error")
 
-      console.log("[v0] OAuth callback - URL params:", { loginSuccess, error, fullURL: window.location.href })
-
       if (error) {
-        console.log("[v0] OAuth error detected:", error)
         toast({
           title: "로그인 실패",
           description: decodeURIComponent(error),
@@ -52,17 +49,15 @@ export default function LoginPage() {
       }
 
       if (loginSuccess === "success") {
-        console.log("[v0] Login success detected, refreshing user...")
         try {
           await refreshUser()
-          console.log("[v0] User refresh successful")
           toast({
             title: "로그인 성공",
             description: "환영합니다!",
           })
           router.push("/browse")
         } catch (err) {
-          console.error("[v0] User refresh failed:", err)
+          console.error("User refresh failed:", err)
           toast({
             title: "오류",
             description: "사용자 정보를 불러오는데 실패했습니다.",
@@ -120,10 +115,8 @@ export default function LoginPage() {
   }
 
   const handleOAuthLogin = (provider: "google" | "kakao") => {
-    // OAuth2 로그인 - 백엔드의 OAuth2 엔드포인트로 리다이렉트
-    console.log("[v0] Initiating OAuth login for provider:", provider)
-    const oauthUrl = `http://localhost:8080/oauth2/authorization/${provider}`
-    console.log("[v0] Redirecting to:", oauthUrl)
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://streamlyai.store'
+    const oauthUrl = `${apiUrl}/oauth2/authorization/${provider}`
     window.location.href = oauthUrl
   }
 
