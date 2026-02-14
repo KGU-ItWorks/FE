@@ -1,4 +1,4 @@
-name: Deploy Frontend to EC2 K3s
+name: Deploy Frontend
 
 on:
   push:
@@ -9,12 +9,12 @@ on:
 env:
   AWS_REGION: ap-northeast-2
   ECR_REGISTRY: 774023531956.dkr.ecr.ap-northeast-2.amazonaws.com
-  ECR_REPOSITORY: streamly-frontend
+  ECR_REPOSITORY: streamly/frontend
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -30,24 +30,15 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-
-    - name: Build and push Frontend image
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        file: ./Dockerfile
-        push: true
-        tags: |
-          ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
-          ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+    - name: Build and push image
+      run: |
+        docker build -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest \
+                     -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }} .
+        docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+        docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
 
     - name: Clean up old ECR images
       run: |
-        # 최신 5개 이미지만 유지하고 나머지 삭제
         IMAGE_IDS=$(aws ecr describe-images \
           --repository-name ${{ env.ECR_REPOSITORY }} \
           --query 'sort_by(imageDetails,& imagePushedAt)[:-5].[imageDigest]' \
@@ -60,77 +51,36 @@ jobs:
               --repository-name ${{ env.ECR_REPOSITORY }} \
               --image-ids imageDigest=$digest
           done
-          echo "✅ Old images deleted"
-        else
-          echo "No old images to delete"
         fi
 
-    - name: Deploy to EC2 via SSH
+    - name: Deploy to EC2
       uses: appleboy/ssh-action@v1.0.0
       with:
         host: ${{ secrets.EC2_HOST }}
         username: ubuntu
         key: ${{ secrets.EC2_SSH_KEY }}
-        envs: ECR_REGISTRY,ECR_REPOSITORY,GITHUB_SHA,AWS_REGION
         script: |
+          cd ~/streamly-deploy
+          
           # ECR 로그인
-          aws ecr get-login-password --region ${AWS_REGION} | \
-            docker login --username AWS --password-stdin ${ECR_REGISTRY}
+          aws ecr get-login-password --region ap-northeast-2 | \
+            docker login --username AWS --password-stdin \
+            774023531956.dkr.ecr.ap-northeast-2.amazonaws.com
           
-          # 이미지 태그
-          IMAGE_TAG="${GITHUB_SHA}"
-          NEW_IMAGE="${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+          # Frontend 업데이트
+          docker-compose pull frontend
+          docker-compose up -d --no-deps frontend
           
-          echo "Deploying frontend: ${NEW_IMAGE}"
-          
-          # K8s Deployment 업데이트
-          kubectl set image deployment/streamly-frontend \
-            frontend=${NEW_IMAGE} \
-            --record
-          
-          # 배포 완료 대기 (5분 타임아웃)
-          kubectl rollout status deployment/streamly-frontend --timeout=5m
-          
-          # 배포 확인
-          kubectl get pods -l app=streamly-frontend
-          
-          # 이전 이미지 정리 (24시간 이상 된 이미지)
-          docker image prune -af --filter "until=24h"
+          # 이전 이미지 정리
+          docker image prune -f
           
           echo "✅ Frontend deployment completed!"
 
-    - name: Verify deployment
-      uses: appleboy/ssh-action@v1.0.0
-      with:
-        host: ${{ secrets.EC2_HOST }}
-        username: ubuntu
-        key: ${{ secrets.EC2_SSH_KEY }}
-        script: |
-          # Health check
-          sleep 10
-          curl -f https://streamlyai.store || exit 1
-          echo "✅ Frontend health check passed!"
-
-    - name: Rollback on failure
-      if: failure()
-      uses: appleboy/ssh-action@v1.0.0
-      with:
-        host: ${{ secrets.EC2_HOST }}
-        username: ubuntu
-        key: ${{ secrets.EC2_SSH_KEY }}
-        script: |
-          echo "❌ Deployment failed! Rolling back..."
-          kubectl rollout undo deployment/streamly-frontend
-          kubectl rollout status deployment/streamly-frontend --timeout=3m
-          echo "⏪ Frontend rollback completed!"
-
-    - name: Notify deployment status
+    - name: Notify
       if: always()
       run: |
         if [ ${{ job.status }} == 'success' ]; then
           echo "✅ Frontend deployment successful!"
-          echo "🔗 URL: https://streamlyai.store"
-          echo "📝 Commit: ${{ github.sha }}"
         else
           echo "❌ Frontend deployment failed!"
         fi
