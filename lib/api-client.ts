@@ -17,19 +17,25 @@ class ApiClient {
   }
 
   private async request<T>(
-    endpoint: string,
-    options: FetchOptions = {}
+      endpoint: string,
+      options: FetchOptions = {}
   ): Promise<T> {
     const { skipAuth = false, headers = {}, ...restOptions } = options;
 
-    // 모든 요청에 보안 헤더 추가
-    const defaultHeaders: HeadersInit = {
+    // 1. HeadersInit 대신 Record<string, string>을 사용하여 동적 할당 허용
+    const defaultHeaders: Record<string, string> = {
       "Content-Type": "application/json",
       "X-Requested-With": "XMLHttpRequest", // CSRF 보호
-      ...headers,
     };
 
-    // Authorization 헤더 추가 (localStorage에서 토큰 가져오기)
+    // 2. 외부에서 전달된 headers 병합 (타입 안전성 확보)
+    if (headers) {
+      Object.entries(headers).forEach(([key, value]) => {
+        defaultHeaders[key] = value as string;
+      });
+    }
+
+    // 3. Authorization 헤더 추가 (이제 에러 없이 할당 가능)
     if (!skipAuth) {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       if (token) {
@@ -47,7 +53,6 @@ class ApiClient {
       const response = await fetch(`${this.baseUrl}${endpoint}`, config);
 
       // 401 에러 시 토큰 갱신 시도 (단, /users/me 엔드포인트는 제외)
-      // /users/me는 초기 로드 시 사용자 확인용이므로 401이 정상일 수 있음
       if (response.status === 401 && !skipAuth && !endpoint.includes("/users/me")) {
         // localStorage 토큰 제거 (만료됨)
         if (typeof window !== 'undefined') {
@@ -100,7 +105,6 @@ class ApiClient {
       // 기타 경우 JSON으로 시도
       return await response.json();
     } catch (error) {
-      // /users/me에서 발생하는 에러는 로그 출력 안 함 (정상적인 로그인 전 상태)
       if (process.env.NODE_ENV === "development" && !endpoint.includes("/users/me")) {
         console.error(`API 요청 실패: ${endpoint}`, error);
       }
@@ -131,9 +135,9 @@ class ApiClient {
   }
 
   async post<T>(
-    endpoint: string,
-    data?: any,
-    options?: FetchOptions
+      endpoint: string,
+      data?: any,
+      options?: FetchOptions
   ): Promise<T> {
     return this.request<T>(endpoint, {
       ...options,
@@ -143,9 +147,9 @@ class ApiClient {
   }
 
   async put<T>(
-    endpoint: string,
-    data?: any,
-    options?: FetchOptions
+      endpoint: string,
+      data?: any,
+      options?: FetchOptions
   ): Promise<T> {
     return this.request<T>(endpoint, {
       ...options,
@@ -159,9 +163,9 @@ class ApiClient {
   }
 
   async patch<T>(
-    endpoint: string,
-    data?: any,
-    options?: FetchOptions
+      endpoint: string,
+      data?: any,
+      options?: FetchOptions
   ): Promise<T> {
     return this.request<T>(endpoint, {
       ...options,
