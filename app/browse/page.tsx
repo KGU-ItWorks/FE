@@ -107,17 +107,13 @@ export default function BrowsePage() {
                 {showVideoPlayer && (featuredVideo.s3Url || featuredVideo.cloudfrontUrl) ? (
                     <HeroVideoPlayer
                         src={featuredVideo.s3Url || featuredVideo.cloudfrontUrl || ""}
-                        poster={
-                          featuredVideo.thumbnailUrl
-                              ? `http://localhost:8080${featuredVideo.thumbnailUrl}`
-                              : undefined
-                        }
+                        poster={featuredVideo.thumbnailUrl || undefined}
                     />
                 ) : (
                     <>
                       {featuredVideo.thumbnailUrl ? (
                           <img
-                              src={`http://localhost:8080${featuredVideo.thumbnailUrl}`}
+                              src={featuredVideo.thumbnailUrl}
                               alt={featuredVideo.title}
                               className="h-full w-full object-cover object-center"
                           />
@@ -207,7 +203,7 @@ export default function BrowsePage() {
                               <div className="relative aspect-video overflow-hidden rounded-md bg-gray-900 mb-2">
                                 {video.thumbnailUrl ? (
                                     <img
-                                        src={`http://localhost:8080${video.thumbnailUrl}`}
+                                        src={video.thumbnailUrl}
                                         alt={video.title}
                                         className="h-full w-full object-cover object-center transition duration-300 group-hover:scale-110"
                                     />
