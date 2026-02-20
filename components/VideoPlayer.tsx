@@ -47,25 +47,6 @@ export default function VideoPlayer({
             liveui: false,
             playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2],
             controlBar: {
-              children: [
-                'playToggle',
-                'volumePanel',
-                'currentTimeDisplay',
-                'timeDivider',
-                'durationDisplay',
-                'progressControl',
-                'liveDisplay',
-                'seekToLive',
-                'remainingTimeDisplay',
-                'customControlSpacer',
-                'playbackRateMenuButton',
-                'chaptersButton',
-                'descriptionsButton',
-                'subsCapsButton',
-                'audioTrackButton',
-                'pictureInPictureToggle',
-                'fullscreenToggle'
-              ],
               volumePanel: {
                 inline: false
               }
@@ -90,9 +71,6 @@ export default function VideoPlayer({
           () => {
             console.log("Player is ready");
             setIsReady(true);
-
-            // 화질 선택 버튼 추가
-            addQualitySelector(player);
 
             if (startTime > 0) {
               player.currentTime(startTime);
@@ -248,13 +226,6 @@ export default function VideoPlayer({
           font-size: 1.2em;
           line-height: 3em;
         }
-        /* 화질 선택 버튼 스타일 */
-        .vjs-quality-button {
-          cursor: pointer;
-        }
-        .vjs-quality-button .vjs-menu {
-          left: -2em;
-        }
         @media (max-width: 768px) {
           .video-js .vjs-big-play-button {
             width: 60px;
@@ -281,103 +252,6 @@ export default function VideoPlayer({
       }
     }
   }, [src, poster, onReady, autoplay, startTime, onTimeUpdate, onEnded]);
-
-  // 화질 선택기 추가 함수
-  const addQualitySelector = (player: Player) => {
-    // HLS 품질 레벨 추적
-    player.on('loadedmetadata', () => {
-      const tech = player.tech({ IWillNotUseThisInPlugins: true }) as any;
-      if (tech && tech.vhs && tech.vhs.playlists) {
-        const playlists = tech.vhs.playlists;
-        const representations = playlists.master.playlists;
-
-        if (representations && representations.length > 1) {
-          // 화질 버튼 생성
-          const MenuButton = videojs.getComponent('MenuButton');
-          const MenuItem = videojs.getComponent('MenuItem');
-
-          class QualityMenuItem extends MenuItem {
-            constructor(player: Player, options: any) {
-              super(player, options);
-              this.selectable = true;
-              this.selected(options.selected);
-            }
-
-            handleClick() {
-              const tech = this.player().tech({ IWillNotUseThisInPlugins: true }) as any;
-              if (this.options_.id === 'auto') {
-                // 자동 화질
-                tech.vhs.representations().forEach((rep: any) => {
-                  rep.enabled(true);
-                });
-              } else {
-                // 특정 화질 선택
-                tech.vhs.representations().forEach((rep: any, index: number) => {
-                  rep.enabled(index === this.options_.index);
-                });
-              }
-            }
-          }
-
-          class QualityButton extends MenuButton {
-            constructor(player: Player) {
-              super(player, {
-                title: '화질',
-                name: 'QualityButton'
-              });
-            }
-
-            createEl() {
-              const el = super.createEl();
-              el.classList.add('vjs-quality-button');
-              return el;
-            }
-
-            createItems() {
-              const items: any[] = [];
-              const sortedReps = representations
-                .slice()
-                .sort((a: any, b: any) => b.attributes.BANDWIDTH - a.attributes.BANDWIDTH);
-
-              // 자동 옵션
-              items.push(new QualityMenuItem(this.player(), {
-                label: '자동',
-                id: 'auto',
-                selected: true
-              }));
-
-              // 각 화질 옵션
-              sortedReps.forEach((rep: any, index: number) => {
-                const height = rep.attributes.RESOLUTION?.height;
-                const label = height ? `${height}p` : `${Math.round(rep.attributes.BANDWIDTH / 1000)}kbps`;
-
-                items.push(new QualityMenuItem(this.player(), {
-                  label: label,
-                  index: representations.indexOf(rep),
-                  selected: false
-                }));
-              });
-
-              return items;
-            }
-          }
-
-          videojs.registerComponent('QualityButton', QualityButton);
-
-          // 버튼을 컨트롤 바에 추가
-          const controlBar = player.getChild('ControlBar');
-          if (controlBar) {
-            const fullscreenToggle = controlBar.getChild('FullscreenToggle');
-            if (fullscreenToggle) {
-              controlBar.addChild('QualityButton', {}, controlBar.children().indexOf(fullscreenToggle));
-            } else {
-              controlBar.addChild('QualityButton');
-            }
-          }
-        }
-      }
-    });
-  };
 
   // 컴포넌트 언마운트 시 플레이어 정리
   useEffect(() => {
