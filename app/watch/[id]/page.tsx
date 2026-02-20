@@ -135,11 +135,7 @@ export default function WatchPage({
         <div className="relative w-full bg-black">
           <VideoPlayer
               src={video.cloudfrontUrl || video.s3Url || ""}
-              poster={
-                video.thumbnailUrl
-                    ? `http://localhost:8080${video.thumbnailUrl}`
-                    : undefined
-              }
+              poster={video.thumbnailUrl || undefined}
               autoplay={autoplay}
           />
         </div>
@@ -237,7 +233,7 @@ export default function WatchPage({
                         <div className="relative aspect-video overflow-hidden rounded-md bg-gray-900 mb-3">
                           {relatedVideo.thumbnailUrl ? (
                               <img
-                                  src={`http://localhost:8080${relatedVideo.thumbnailUrl}`}
+                                  src={relatedVideo.thumbnailUrl}
                                   alt={relatedVideo.title}
                                   className="h-full w-full object-cover transition duration-300 group-hover:scale-110"
                               />

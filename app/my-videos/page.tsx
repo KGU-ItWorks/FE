@@ -175,7 +175,7 @@ export default function MyVideosPage() {
                   <div className="flex h-32 w-48 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted">
                     {video.thumbnailUrl ? (
                       <img
-                        src={`http://localhost:8080${video.thumbnailUrl}`}
+                        src={video.thumbnailUrl}
                         alt={video.title}
                         className="h-full w-full object-cover"
                       />

@@ -113,7 +113,7 @@ export default function SearchPage() {
                       <div className="relative aspect-video overflow-hidden rounded-md bg-muted mb-3">
                         {video.thumbnailUrl ? (
                           <img
-                            src={`http://localhost:8080${video.thumbnailUrl}`}
+                            src={video.thumbnailUrl}
                             alt={video.title}
                             className="h-full w-full object-cover transition group-hover:scale-105"
                           />
