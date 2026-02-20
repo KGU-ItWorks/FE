@@ -47,25 +47,6 @@ export default function VideoPlayer({
             liveui: false,
             playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2],
             controlBar: {
-              children: [
-                'playToggle',
-                'volumePanel',
-                'currentTimeDisplay',
-                'timeDivider',
-                'durationDisplay',
-                'progressControl',
-                'liveDisplay',
-                'seekToLive',
-                'remainingTimeDisplay',
-                'customControlSpacer',
-                'playbackRateMenuButton',
-                'chaptersButton',
-                'descriptionsButton',
-                'subsCapsButton',
-                'audioTrackButton',
-                'pictureInPictureToggle',
-                'fullscreenToggle'
-              ],
               volumePanel: {
                 inline: false
               }
