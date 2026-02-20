@@ -175,7 +175,7 @@ export default function VideoDetailPage({
             <div className="aspect-video overflow-hidden rounded-lg bg-muted">
               {video.thumbnailUrl ? (
                 <img
-                  src={`http://localhost:8080${video.thumbnailUrl}`}
+                  src={video.thumbnailUrl}
                   alt={video.title}
                   className="h-full w-full object-cover"
                 />
