@@ -16,71 +16,69 @@ interface VideoPlayerProps {
 }
 
 export default function VideoPlayer({
-                                      src,
-                                      poster,
-                                      onReady,
-                                      onTimeUpdate,
-                                      onEnded,
-                                      autoplay = false,
-                                      startTime = 0
-                                    }: VideoPlayerProps) {
+  src,
+  poster,
+  onReady,
+  onTimeUpdate,
+  onEnded,
+  autoplay = false,
+  startTime = 0
+}: VideoPlayerProps) {
   const videoRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<Player | null>(null);
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    // 플레이어가 이미 초기화되었는지 확인
     if (!playerRef.current && videoRef.current) {
       const videoElement = document.createElement("video-js");
       videoElement.classList.add("vjs-big-play-centered");
       videoRef.current.appendChild(videoElement);
 
       const player = (playerRef.current = videojs(
-          videoElement,
-          {
-            autoplay: autoplay,
-            controls: true,
-            responsive: true,
-            fluid: true,
-            preload: "auto",
-            poster: poster,
-            liveui: false,
-            playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2],
-            controlBar: {
-              volumePanel: {
-                inline: false
-              }
-            },
-            html5: {
-              vhs: {
-                overrideNative: true,
-                enableLowInitialPlaylist: true,
-                smoothQualityChange: true,
-                fastQualityChange: true
-              },
-              nativeAudioTracks: false,
-              nativeVideoTracks: false
-            },
-            sources: [
-              {
-                src: src,
-                type: "application/x-mpegURL",
-              },
-            ],
-          },
-          () => {
-            console.log("Player is ready");
-            setIsReady(true);
-
-            if (startTime > 0) {
-              player.currentTime(startTime);
+        videoElement,
+        {
+          autoplay: autoplay,
+          controls: true,
+          responsive: true,
+          fluid: true,
+          preload: "auto",
+          poster: poster,
+          liveui: false,
+          playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2],
+          controlBar: {
+            volumePanel: {
+              inline: false
             }
+          },
+          html5: {
+            vhs: {
+              overrideNative: true,
+              enableLowInitialPlaylist: true,
+              smoothQualityChange: true,
+              fastQualityChange: true
+            },
+            nativeAudioTracks: false,
+            nativeVideoTracks: false
+          },
+          sources: [
+            {
+              src: src,
+              type: "application/x-mpegURL",
+            },
+          ],
+        },
+        () => {
+          console.log("Player is ready");
+          setIsReady(true);
 
-            onReady && onReady(player);
+          if (startTime > 0) {
+            player.currentTime(startTime);
           }
+
+          onReady && onReady(player);
+        }
       ));
 
-      // 커스텀 이벤트 리스너
       player.on('timeupdate', () => {
         if (onTimeUpdate) {
           onTimeUpdate(player.currentTime() || 0);
@@ -93,7 +91,6 @@ export default function VideoPlayer({
         }
       });
 
-      // 키보드 단축키 추가
       player.on('keydown', (e: Event) => {
         const keyEvent = e as unknown as KeyboardEvent;
         const currentTime = player.currentTime() || 0;
@@ -127,7 +124,6 @@ export default function VideoPlayer({
         }
       });
 
-      // 넷플릭스 스타일 커스텀 CSS
       const style = document.createElement('style');
       style.textContent = `
         .video-js {
@@ -253,7 +249,6 @@ export default function VideoPlayer({
     }
   }, [src, poster, onReady, autoplay, startTime, onTimeUpdate, onEnded]);
 
-  // 컴포넌트 언마운트 시 플레이어 정리
   useEffect(() => {
     return () => {
       if (playerRef.current && !playerRef.current.isDisposed()) {
@@ -264,8 +259,8 @@ export default function VideoPlayer({
   }, []);
 
   return (
-      <div data-vjs-player className="w-full">
-        <div ref={videoRef} />
-      </div>
+    <div data-vjs-player className="w-full">
+      <div ref={videoRef} />
+    </div>
   );
 }
