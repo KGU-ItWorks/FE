@@ -1,289 +1,260 @@
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Play, Plus, ThumbsUp, ThumbsDown, Share2, ChevronLeft, Star, Clock, Calendar } from "lucide-react"
-import { BrowseHeader } from "@/components/browse-header"
-import { ContentRow } from "@/components/content-row"
+"use client";
 
-// Mock similar content
-const SIMILAR_CONTENT = [
-  { id: 101, title: "스페이스 오딧세이", thumbnail: "/similar-1.jpg", type: "movie" as const },
-  { id: 102, title: "딥 스페이스", thumbnail: "/similar-2.jpg", type: "series" as const },
-  { id: 103, title: "갤럭시 워", thumbnail: "/similar-3.jpg", type: "movie" as const },
-  { id: 104, title: "코스믹 히어로", thumbnail: "/similar-4.jpg", type: "series" as const },
-  { id: 105, title: "스타 체이서", thumbnail: "/similar-5.jpg", type: "movie" as const },
-  { id: 106, title: "보이드 런너", thumbnail: "/similar-6.jpg", type: "series" as const },
-]
+import { use, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import VideoPlayer from "@/components/VideoPlayer";
+import { videoApi } from "@/lib/api";
+import { ArrowLeft, ThumbsUp, ThumbsDown, Plus, Volume2 } from "lucide-react";
 
-const REVIEWS = [
-  {
-    id: 1,
-    author: "김영희",
-    rating: 5,
-    date: "2026-01-10",
-    content: "정말 놀라운 영상미와 스토리! SF 팬이라면 꼭 봐야 할 작품입니다.",
-  },
-  {
-    id: 2,
-    author: "이철수",
-    rating: 4,
-    date: "2026-01-08",
-    content: "전개가 조금 느리지만 후반부는 정말 압권입니다. 연기도 훌륭해요.",
-  },
-  {
-    id: 3,
-    author: "박지민",
-    rating: 5,
-    date: "2026-01-05",
-    content: "크리스토퍼 놀란 감독의 최고 작품 중 하나. 반전이 정말 충격적이었습니다!",
-  },
-]
+// API 데이터 구조에 맞춰 string | null 허용
+interface Video {
+  id: number;
+  title: string;
+  description: string | null;
+  cloudfrontUrl: string | null;
+  s3Url: string | null;
+  thumbnailUrl: string | null;
+  durationSeconds: number | null;
+  resolution: string | null;
+  viewCount: number;
+  createdAt: string;
+  category: string | null;
+  ageRating: string | null;
+  uploader?: {
+    id: number;
+    username: string;
+  };
+  uploaderName: string;
+  status?: string;
+}
 
-export default function WatchPage({ params }: { params: { id: string } }) {
-  // Mock content data - will be fetched from backend later
-  const content = {
-    id: params.id,
-    title: "블랙 호라이즌",
-    year: 2026,
-    rating: "15+",
-    duration: "2시간 18분",
-    genre: ["SF", "스릴러", "액션"],
-    match: "98% 일치",
-    userRating: 4.8,
-    totalReviews: 1523,
-    releaseDate: "2026-01-01",
-    description:
-      "전설적인 우주 탐험가가 미지의 행성에서 인류의 운명을 건 마지막 미션을 수행한다. 시간이 얼마 남지 않았다. 우주의 끝에서 발견한 진실이 인류의 미래를 바꿀 것인가?",
-    cast: ["존 도우", "제인 스미스", "마이클 존슨", "에밀리 데이비스"],
-    director: "크리스토퍼 놀란",
-    writer: "조나단 놀란",
-    studio: "워너 브라더스",
-    language: "영어, 한국어",
-    subtitle: "한국어, 영어, 일본어",
+export default function WatchPage({
+                                    params,
+                                  }: {
+  params: Promise<{ id: string }>;
+}) {
+  const resolvedParams = use(params);
+  const videoId = parseInt(resolvedParams.id);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const autoplay = searchParams?.get('autoplay') === 'true';
+
+  const [video, setVideo] = useState<Video | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [relatedVideos, setRelatedVideos] = useState<Video[]>([]);
+
+  useEffect(() => {
+    const fetchVideo = async () => {
+      try {
+        setLoading(true);
+        // 에러 수정: videoId.toString() 대신 숫자 타입인 videoId를 그대로 전달합니다.
+        const data = await videoApi.getVideoById(videoId);
+        setVideo(data as unknown as Video);
+
+        if (data.category) {
+          loadRelatedVideos(data.category);
+        }
+      } catch (err: any) {
+        console.error("Failed to fetch video:", err);
+        setError(err.message || "영상을 불러오는데 실패했습니다.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (!isNaN(videoId)) {
+      fetchVideo();
+    }
+  }, [videoId]);
+
+  const loadRelatedVideos = async (category: string) => {
+    try {
+      const response = await videoApi.getPublishedVideos(0, 20);
+      const related = response.content
+          .filter(v =>
+              v.id !== videoId &&
+              v.status?.toUpperCase() === "COMPLETED" &&
+              v.category === category
+          )
+          .slice(0, 6);
+      setRelatedVideos(related as unknown as Video[]);
+    } catch (error) {
+      console.error("Failed to load related videos:", error);
+    }
+  };
+
+  const formatDuration = (seconds: number | null) => {
+    if (!seconds) return "";
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+
+    if (hours > 0) {
+      return `${hours}시간 ${minutes}분`;
+    }
+    return `${minutes}분`;
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return isNaN(date.getTime()) ? "" : date.getFullYear() + "년";
+  };
+
+  if (loading) {
+    return (
+        <div className="min-h-screen bg-black flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto"></div>
+            <p className="mt-4 text-gray-400">영상 로딩 중...</p>
+          </div>
+        </div>
+    );
+  }
+
+  if (error || !video) {
+    return (
+        <div className="min-h-screen bg-black flex items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-white mb-4">
+              영상을 찾을 수 없습니다
+            </h2>
+            <p className="text-gray-400 mb-6">{error}</p>
+            <button
+                onClick={() => router.push("/browse")}
+                className="px-6 py-2 bg-white text-black rounded hover:bg-gray-200 font-semibold"
+            >
+              홈으로 돌아가기
+            </button>
+          </div>
+        </div>
+    );
   }
 
   return (
-    <div className="relative min-h-screen bg-background">
-      <BrowseHeader />
-
-      {/* Hero Section with Video Player Area */}
-      <div className="relative h-[80vh] w-full">
-        <div className="absolute inset-0">
-          <img src="/watch-hero-background.jpg" alt={content.title} className="h-full w-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-r from-background/80 via-transparent to-transparent" />
+      <div className="min-h-screen bg-black">
+        <div className="relative w-full bg-black">
+          <VideoPlayer
+              src={video.cloudfrontUrl || video.s3Url || ""}
+              poster={video.thumbnailUrl || undefined}
+              autoplay={autoplay}
+          />
         </div>
 
-        <div className="container relative mx-auto flex h-full flex-col justify-between px-4 pt-24 pb-12 md:px-12">
-          {/* Back Button */}
-          <Link href="/browse">
-            <Button variant="ghost" className="gap-2 text-foreground hover:text-foreground/80">
-              <ChevronLeft className="h-5 w-5" />
-              뒤로가기
-            </Button>
-          </Link>
+        <div className="fixed top-6 left-6 z-50">
+          <button
+              onClick={() => router.push("/browse")}
+              className="flex items-center gap-2 px-4 py-2 bg-black/50 hover:bg-black/70 backdrop-blur-sm text-white rounded-full transition"
+          >
+            <ArrowLeft className="h-5 w-5" />
+            <span className="font-semibold">홈</span>
+          </button>
+        </div>
 
-          {/* Title and Actions */}
-          <div className="max-w-3xl space-y-6">
-            <h1 className="text-5xl font-bold text-balance md:text-6xl lg:text-7xl">{content.title}</h1>
+        <div className="max-w-6xl mx-auto px-4 md:px-8 py-8 md:py-12">
+          <div className="mb-8">
+            <h1 className="text-3xl md:text-4xl font-bold text-white mb-6">
+              {video.title}
+            </h1>
 
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Star className="h-5 w-5 fill-yellow-500 text-yellow-500" />
-                <span className="text-lg font-semibold">{content.userRating}</span>
-                <span className="text-sm text-muted-foreground">({content.totalReviews.toLocaleString()} 리뷰)</span>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <Button size="lg" className="gap-2 bg-foreground text-background hover:bg-foreground/90">
-                <Play className="h-5 w-5" fill="currentColor" />
-                재생
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                className="gap-2 border-muted bg-muted/30 backdrop-blur-sm hover:bg-muted/50"
-              >
+            <div className="flex items-center gap-4 flex-wrap">
+              <button className="flex items-center gap-2 px-6 py-2 bg-white text-black rounded hover:bg-gray-200 font-semibold transition">
+                <ThumbsUp className="h-5 w-5" />
+                좋아요
+              </button>
+              <button className="flex items-center gap-2 px-6 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 font-semibold transition">
+                <ThumbsDown className="h-5 w-5" />
+              </button>
+              <button className="flex items-center gap-2 px-6 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 font-semibold transition">
                 <Plus className="h-5 w-5" />
                 내가 찜한 콘텐츠
-              </Button>
-              <Button
-                size="icon"
-                variant="outline"
-                className="border-muted bg-muted/30 backdrop-blur-sm hover:bg-muted/50"
-              >
-                <ThumbsUp className="h-5 w-5" />
-              </Button>
-              <Button
-                size="icon"
-                variant="outline"
-                className="border-muted bg-muted/30 backdrop-blur-sm hover:bg-muted/50"
-              >
-                <ThumbsDown className="h-5 w-5" />
-              </Button>
-              <Button
-                size="icon"
-                variant="outline"
-                className="border-muted bg-muted/30 backdrop-blur-sm hover:bg-muted/50"
-              >
-                <Share2 className="h-5 w-5" />
-              </Button>
+              </button>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Content Details */}
-      <div className="container mx-auto px-4 py-12 md:px-12">
-        <div className="grid gap-12 lg:grid-cols-3">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Meta Info */}
-            <div className="flex flex-wrap items-center gap-4 text-sm">
-              <Badge variant="secondary" className="bg-primary/20 text-primary border-primary/30">
-                {content.match}
-              </Badge>
-              <span className="text-muted-foreground">{content.year}</span>
-              <Badge variant="outline" className="border-muted-foreground/30">
-                {content.rating}
-              </Badge>
-              <span className="text-muted-foreground">{content.duration}</span>
+          <div className="grid md:grid-cols-3 gap-8 mb-8">
+            <div className="md:col-span-2 space-y-4">
+              <div className="flex items-center gap-4 text-sm text-gray-400">
+              <span className="text-green-500 font-semibold">
+                {video.viewCount.toLocaleString()}회 시청
+              </span>
+                <span>{formatDate(video.createdAt)}</span>
+                {video.ageRating && (
+                    <span className="px-2 py-1 border border-gray-600 text-xs">
+                  {video.ageRating}
+                </span>
+                )}
+                {video.durationSeconds && (
+                    <span>{formatDuration(video.durationSeconds)}</span>
+                )}
+              </div>
+
+              {video.description && (
+                  <p className="text-lg text-gray-300 leading-relaxed">
+                    {video.description}
+                  </p>
+              )}
             </div>
 
-            {/* Description */}
-            <div className="space-y-4">
-              <p className="text-lg leading-relaxed text-foreground/90">{content.description}</p>
+            <div className="space-y-3 text-sm">
+              <div>
+                <span className="text-gray-500">업로더: </span>
+                <span className="text-white">
+                {video.uploader?.username || video.uploaderName}
+              </span>
+              </div>
+              {video.category && (
+                  <div>
+                    <span className="text-gray-500">장르: </span>
+                    <span className="text-white">{video.category}</span>
+                  </div>
+              )}
+              {video.resolution && (
+                  <div>
+                    <span className="text-gray-500">화질: </span>
+                    <span className="text-white">{video.resolution}</span>
+                  </div>
+              )}
             </div>
+          </div>
 
-            {/* Genres */}
-            <div className="flex flex-wrap gap-2">
-              {content.genre.map((g) => (
-                <Badge key={g} variant="secondary" className="bg-secondary/50">
-                  {g}
-                </Badge>
-              ))}
-            </div>
-
-            {/* Episodes Section (for series) */}
-            <div className="space-y-4">
-              <h2 className="text-2xl font-semibold">에피소드</h2>
-              <div className="space-y-3">
-                {[1, 2, 3].map((ep) => (
-                  <div
-                    key={ep}
-                    className="flex gap-4 rounded-md bg-muted/30 p-4 transition-colors hover:bg-muted/50 cursor-pointer"
-                  >
-                    <div className="relative h-24 w-40 flex-shrink-0 overflow-hidden rounded-md">
-                      <img src={`/episode-${ep}.jpg`} alt={`Episode ${ep}`} className="h-full w-full object-cover" />
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                        <Play className="h-8 w-8" fill="currentColor" />
-                      </div>
-                    </div>
-                    <div className="flex-1 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-semibold">
-                          {ep}. 에피소드 {ep}
+          {/* 관련 영상 목록 */}
+          {relatedVideos.length > 0 && (
+              <div className="mt-16">
+                <h2 className="text-2xl font-bold text-white mb-6">
+                  비슷한 콘텐츠
+                </h2>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {relatedVideos.map(relatedVideo => (
+                      <button
+                          key={relatedVideo.id}
+                          onClick={() => router.push(`/watch/${relatedVideo.id}`)}
+                          className="group text-left"
+                      >
+                        <div className="relative aspect-video overflow-hidden rounded-md bg-gray-900 mb-3">
+                          {relatedVideo.thumbnailUrl ? (
+                              <img
+                                  src={relatedVideo.thumbnailUrl}
+                                  alt={relatedVideo.title}
+                                  className="h-full w-full object-cover transition duration-300 group-hover:scale-110"
+                              />
+                          ) : (
+                              <div className="flex items-center justify-center h-full bg-gradient-to-br from-gray-800 to-gray-900">
+                                <Volume2 className="h-12 w-12 text-gray-600" />
+                              </div>
+                          )}
+                        </div>
+                        <h3 className="font-semibold text-white group-hover:text-gray-300 transition line-clamp-2 mb-1">
+                          {relatedVideo.title}
                         </h3>
-                        <span className="text-sm text-muted-foreground">52분</span>
-                      </div>
-                      <p className="text-sm text-muted-foreground leading-relaxed">
-                        우주 탐험가가 미지의 행성에 도착하여 놀라운 발견을 하게 된다.
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <h2 className="text-2xl font-semibold">사용자 리뷰</h2>
-              <div className="space-y-4">
-                {REVIEWS.map((review) => (
-                  <div key={review.id} className="rounded-lg border border-border bg-muted/20 p-6">
-                    <div className="mb-3 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/20 font-semibold text-primary">
-                          {review.author.charAt(0)}
-                        </div>
-                        <div>
-                          <div className="font-semibold">{review.author}</div>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <div className="flex">
-                              {Array.from({ length: 5 }).map((_, i) => (
-                                <Star
-                                  key={i}
-                                  className={`h-4 w-4 ${i < review.rating ? "fill-yellow-500 text-yellow-500" : "text-muted"}`}
-                                />
-                              ))}
-                            </div>
-                            <span>{review.date}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <p className="leading-relaxed text-foreground/90">{review.content}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            <div className="rounded-lg border border-border bg-muted/20 p-6">
-              <h3 className="mb-4 text-lg font-semibold">상세 정보</h3>
-              <div className="space-y-4 text-sm">
-                <div className="flex items-start gap-3">
-                  <Calendar className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
-                  <div>
-                    <div className="text-muted-foreground">개봉일</div>
-                    <div className="font-medium">{content.releaseDate}</div>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <Clock className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
-                  <div>
-                    <div className="text-muted-foreground">러닝타임</div>
-                    <div className="font-medium">{content.duration}</div>
-                  </div>
-                </div>
-
-                <div>
-                  <span className="text-muted-foreground">출연: </span>
-                  <span className="text-foreground">{content.cast.join(", ")}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">감독: </span>
-                  <span className="text-foreground">{content.director}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">각본: </span>
-                  <span className="text-foreground">{content.writer}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">제작사: </span>
-                  <span className="text-foreground">{content.studio}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">언어: </span>
-                  <span className="text-foreground">{content.language}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">자막: </span>
-                  <span className="text-foreground">{content.subtitle}</span>
+                        <p className="text-sm text-gray-400 line-clamp-2">
+                          {relatedVideo.description}
+                        </p>
+                      </button>
+                  ))}
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Similar Content */}
-        <div className="mt-16">
-          <ContentRow title="비슷한 콘텐츠" items={SIMILAR_CONTENT} />
+          )}
         </div>
       </div>
-    </div>
-  )
+  );
 }
