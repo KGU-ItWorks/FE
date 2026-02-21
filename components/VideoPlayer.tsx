@@ -1,4 +1,4 @@
-"use client";
+"use client"; //병합 충돌 수정
 
 import { useEffect, useRef, useState } from "react";
 import videojs from "video.js";
