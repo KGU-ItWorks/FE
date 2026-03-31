@@ -2,16 +2,27 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { BrowseHeader } from "@/components/browse-header";
 import { HeroVideoPlayer } from "@/components/hero-video-player";
 import { videoApi, type Video } from "@/lib/api";
 import { Play, Info, Clock, Eye } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function BrowsePage() {
+  const router = useRouter();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [featuredVideo, setFeaturedVideo] = useState<Video | null>(null);
   const [showVideoPlayer, setShowVideoPlayer] = useState(false);
+
+  // Auth guard - redirect to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.push("/login");
+    }
+  }, [isAuthenticated, authLoading, router]);
 
   useEffect(() => {
     loadVideos();
@@ -83,6 +94,10 @@ export default function BrowsePage() {
     { name: "컴투 대기", slug: "comedy", videos: getCategoryVideos("컴투 대기") },
     { name: "SF", slug: "sf", videos: getCategoryVideos("SF") },
   ];
+
+  if (authLoading || !isAuthenticated) {
+    return null;
+  }
 
   if (loading) {
     return (
