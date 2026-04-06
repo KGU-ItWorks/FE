@@ -48,30 +48,38 @@ export default function WatchPage({
   const [favoriteLoading, setFavoriteLoading] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     const fetchVideo = async () => {
       try {
         setLoading(true);
         const data = await videoApi.getVideoById(videoId);
-        setVideo(data as unknown as Video);
+
+        if (!cancelled) setVideo(data as unknown as Video);
 
         if (data.category) {
           loadRelatedVideos(data.category);
         }
       } catch (err: any) {
         console.error("Failed to fetch video:", err);
-        setError(err.message || "영상을 불러오는데 실패했습니다.");
+        if (!cancelled) setError(err.message || "영상을 불러오는데 실패했습니다.");
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     if (!isNaN(videoId)) {
+      setIsFavorited(false);
       fetchVideo();
-      // 실제 찜 상태 조회
       favoritesApi.check(videoId)
-        .then((res) => setIsFavorited(res.favorited))
-        .catch(() => {}); // 비로그인 상태면 조용히 무시
+          .then((res) => {
+          if (!cancelled) setIsFavorited(res.favorited);
+        }).catch(() => {
+          if (!cancelled) setIsFavorited(false);
+        });
     }
+    return () => {
+      cancelled = true;
+    };
   }, [videoId]);
 
   const handleToggleFavorite = async () => {
