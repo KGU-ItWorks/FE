@@ -50,6 +50,7 @@ export default function WatchPage({
   const toggleRequestIdRef = useRef(0);
 
   useEffect(() => {
+    activeVideoIdRef.current = videoId;
     let cancelled = false;
     const fetchVideo = async () => {
       try {
