@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import VideoPlayer from "@/components/VideoPlayer";
 import { videoApi, favoritesApi } from "@/lib/api";
@@ -46,6 +46,8 @@ export default function WatchPage({
   const [relatedVideos, setRelatedVideos] = useState<Video[]>([]);
   const [isFavorited, setIsFavorited] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
+  const activeVideoIdRef = useRef<number | null>(null);
+  const toggleRequestIdRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -84,17 +86,31 @@ export default function WatchPage({
 
   const handleToggleFavorite = async () => {
     if (favoriteLoading || !video) return;
+
+    const targetVideoId = video.id;
+    const requestId = ++toggleRequestIdRef.current;
+
     try {
       setFavoriteLoading(true);
-      const result = await favoritesApi.toggle(video.id);
-      setIsFavorited(result.favorited);
+
+      const result = await favoritesApi.toggle(targetVideoId);
+
+      // 최신 요청 + 현재 보고 있는 video인지 체크
+      if (
+          requestId === toggleRequestIdRef.current &&
+          activeVideoIdRef.current === targetVideoId
+      ) {
+        setIsFavorited(result.favorited);
+      }
     } catch (err) {
       console.error("찜 토글 실패:", err);
     } finally {
-      setFavoriteLoading(false);
+      // 이전 요청이면 로딩 해제 안함
+      if (requestId === toggleRequestIdRef.current) {
+        setFavoriteLoading(false);
+      }
     }
   };
-
   const loadRelatedVideos = async (category: string) => {
     try {
       const response = await videoApi.getPublishedVideos(0, 20);
