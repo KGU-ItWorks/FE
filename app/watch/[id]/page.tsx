@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import VideoPlayer from "@/components/VideoPlayer";
 import { videoApi, favoritesApi } from "@/lib/api";
 import { ArrowLeft, ThumbsUp, ThumbsDown, Heart, Volume2 } from "lucide-react";
-import { formatDuration, formatDate } from "@/lib/format";
+import { formatDuration } from "@/lib/format";
 
 // API 데이터 구조에 맞춰 string | null 허용
 interface Video {
@@ -51,7 +51,6 @@ export default function WatchPage({
     const fetchVideo = async () => {
       try {
         setLoading(true);
-        // 에러 수정: videoId.toString() 대신 숫자 타입인 videoId를 그대로 전달합니다.
         const data = await videoApi.getVideoById(videoId);
         setVideo(data as unknown as Video);
 
@@ -68,6 +67,10 @@ export default function WatchPage({
 
     if (!isNaN(videoId)) {
       fetchVideo();
+      // 실제 찜 상태 조회
+      favoritesApi.check(videoId)
+        .then((res) => setIsFavorited(res.favorited))
+        .catch(() => {}); // 비로그인 상태면 조용히 무시
     }
   }, [videoId]);
 
@@ -98,6 +101,11 @@ export default function WatchPage({
     } catch (error) {
       console.error("Failed to load related videos:", error);
     }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return isNaN(date.getTime()) ? "" : date.getFullYear() + "년";
   };
 
   if (loading) {

@@ -27,8 +27,10 @@ export default function BrowsePage() {
   }, [isAuthenticated, authLoading, router]);
 
   useEffect(() => {
-    loadVideos();
-  }, []);
+    if(isAuthenticated){
+      loadVideos();
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
     // 페이지 로드 후 2초 뒤에 비디오 플레이어 표시 (이미지 -> 비디오 전환)

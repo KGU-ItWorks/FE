@@ -136,6 +136,9 @@ export const favoritesApi = {
       method: "POST",
     }),
 
+  check: (videoId: number) =>
+    apiRequest<{ favorited: boolean }>(`/api/v1/interactions/favorites/${videoId}/status`),
+
   getMyFavorites: (page: number = 0, size: number = 10) =>
     apiRequest<PageResponse<FavoritesResponse>>(
       `/api/v1/interactions/favorites?page=${page}&size=${size}`

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Play, Heart } from "lucide-react";
 import { favoritesApi, type Video } from "@/lib/api";
@@ -13,6 +13,12 @@ interface VideoCardProps {
 export default function VideoCard({ video }: VideoCardProps) {
     const [isFavorited, setIsFavorited] = useState(false);
     const [favoriteLoading, setFavoriteLoading] = useState(false);
+
+    useEffect(() => {
+        favoritesApi.check(video.id)
+            .then((res) => setIsFavorited(res.favorited))
+            .catch(() => {}); // 비로그인 상태면 조용히 무시
+    }, [video.id]);
 
     const handleToggleFavorite = async (e: React.MouseEvent) => {
         e.preventDefault();  // prevent navigating to /watch page
