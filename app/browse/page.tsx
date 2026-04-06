@@ -8,6 +8,8 @@ import { HeroVideoPlayer } from "@/components/hero-video-player";
 import { videoApi, type Video } from "@/lib/api";
 import { Play, Info, Clock, Eye } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import VideoCard from "@/components/VideoCard";
+import { formatDuration } from "@/lib/format";
 
 export default function BrowsePage() {
   const router = useRouter();
@@ -67,17 +69,7 @@ export default function BrowsePage() {
     }
   };
 
-  const formatDuration = (seconds: number | null) => {
-    if (!seconds) return "0:00";
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-    }
-    return `${minutes}:${secs.toString().padStart(2, "0")}`;
-  };
+  
 
   const getCategoryVideos = (category: string) => {
     return videos.filter(v => {
@@ -164,7 +156,7 @@ export default function BrowsePage() {
                       )}
                       <div className="flex items-center gap-1">
                         <Eye className="h-4 w-4" />
-                        <span>{featuredVideo.viewCount.toLocaleString()}회</span>
+                        <span>{(featuredVideo.viewCount ?? 0).toLocaleString()}회</span>
                       </div>
                       {featuredVideo.ageRating && (
                           <span className="px-2 py-1 bg-white/20 backdrop-blur-sm rounded text-xs font-semibold">
@@ -213,43 +205,7 @@ export default function BrowsePage() {
 
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 md:gap-4">
                       {category.videos.map(video => (
-                          <Link key={video.id} href={`/watch/${video.id}`}>
-                            <div className="group cursor-pointer">
-                              <div className="relative aspect-video overflow-hidden rounded-md bg-gray-900 mb-2">
-                                {video.thumbnailUrl ? (
-                                    <img
-                                        src={video.thumbnailUrl}
-                                        alt={video.title}
-                                        className="h-full w-full object-cover object-center transition duration-300 group-hover:scale-110"
-                                    />
-                                ) : (
-                                    <div className="flex items-center justify-center h-full bg-gradient-to-br from-gray-800 to-gray-900">
-                                      <Play className="h-12 w-12 text-gray-600" />
-                                    </div>
-                                )}
-
-                                {video.durationSeconds && (
-                                    <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/80 rounded text-xs text-white font-semibold">
-                                      {formatDuration(video.durationSeconds)}
-                                    </div>
-                                )}
-
-                                <div className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition duration-300">
-                                  <div className="p-4 bg-white/30 backdrop-blur-sm rounded-full">
-                                    <Play className="h-10 w-10 text-white" fill="currentColor" />
-                                  </div>
-                                </div>
-                              </div>
-
-                              <h3 className="font-semibold line-clamp-1 text-white group-hover:text-gray-300 transition text-sm md:text-base">
-                                {video.title}
-                              </h3>
-
-                              <div className="flex items-center gap-2 text-xs text-gray-400 mt-1">
-                                <span className="line-clamp-1">{video.uploaderName}</span>
-                              </div>
-                            </div>
-                          </Link>
+                          <VideoCard key={video.id} video={video} />
                       ))}
                     </div>
                   </div>

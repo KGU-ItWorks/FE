@@ -3,8 +3,9 @@
 import { use, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import VideoPlayer from "@/components/VideoPlayer";
-import { videoApi } from "@/lib/api";
-import { ArrowLeft, ThumbsUp, ThumbsDown, Plus, Volume2 } from "lucide-react";
+import { videoApi, favoritesApi } from "@/lib/api";
+import { ArrowLeft, ThumbsUp, ThumbsDown, Heart, Volume2 } from "lucide-react";
+import { formatDuration, formatDate } from "@/lib/format";
 
 // API 데이터 구조에 맞춰 string | null 허용
 interface Video {
@@ -43,6 +44,8 @@ export default function WatchPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [relatedVideos, setRelatedVideos] = useState<Video[]>([]);
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
 
   useEffect(() => {
     const fetchVideo = async () => {
@@ -68,6 +71,19 @@ export default function WatchPage({
     }
   }, [videoId]);
 
+  const handleToggleFavorite = async () => {
+    if (favoriteLoading || !video) return;
+    try {
+      setFavoriteLoading(true);
+      const result = await favoritesApi.toggle(video.id);
+      setIsFavorited(result.favorited);
+    } catch (err) {
+      console.error("찜 토글 실패:", err);
+    } finally {
+      setFavoriteLoading(false);
+    }
+  };
+
   const loadRelatedVideos = async (category: string) => {
     try {
       const response = await videoApi.getPublishedVideos(0, 20);
@@ -82,22 +98,6 @@ export default function WatchPage({
     } catch (error) {
       console.error("Failed to load related videos:", error);
     }
-  };
-
-  const formatDuration = (seconds: number | null) => {
-    if (!seconds) return "";
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-
-    if (hours > 0) {
-      return `${hours}시간 ${minutes}분`;
-    }
-    return `${minutes}분`;
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return isNaN(date.getTime()) ? "" : date.getFullYear() + "년";
   };
 
   if (loading) {
@@ -164,9 +164,17 @@ export default function WatchPage({
               <button className="flex items-center gap-2 px-6 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 font-semibold transition">
                 <ThumbsDown className="h-5 w-5" />
               </button>
-              <button className="flex items-center gap-2 px-6 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 font-semibold transition">
-                <Plus className="h-5 w-5" />
-                내가 찜한 콘텐츠
+              <button
+                  onClick={handleToggleFavorite}
+                  disabled={favoriteLoading}
+                  className={`flex items-center gap-2 px-6 py-2 rounded font-semibold transition ${
+                      isFavorited
+                          ? "bg-red-600 text-white hover:bg-red-700"
+                          : "bg-gray-800 text-white hover:bg-gray-700"
+                  }`}
+              >
+                <Heart className="h-5 w-5" fill={isFavorited ? "currentColor" : "none"} />
+                {isFavorited ? "찜 취소" : "내가 찜한 콘텐츠"}
               </button>
             </div>
           </div>

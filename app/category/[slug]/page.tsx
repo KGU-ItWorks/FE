@@ -5,8 +5,9 @@ import Link from "next/link";
 import { BrowseHeader } from "@/components/browse-header";
 import { videoApi, type Video } from "@/lib/api";
 import { getCategoryBySlug } from "@/lib/categories";
-import { Play, Clock, Eye, ArrowLeft } from "lucide-react";
+import { Play, Eye, ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { formatDuration } from "@/lib/format";
 
 export default function CategoryPage({
   params,
@@ -48,18 +49,6 @@ export default function CategoryPage({
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatDuration = (seconds: number | null) => {
-    if (!seconds) return "0:00";
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-    }
-    return `${minutes}:${secs.toString().padStart(2, "0")}`;
   };
 
   if (loading) {
