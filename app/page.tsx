@@ -58,7 +58,7 @@ export default function LandingPage() {
               다양한 디바이스에서 시청하세요. 언제든지 해지 가능합니다.
             </p>
             <div className="flex flex-wrap items-center gap-4">
-              <Link href="/browse">
+              <Link href="/login">
                 <Button size="lg" className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
                   <Play className="h-5 w-5" fill="currentColor" />
                   지금 시청하기

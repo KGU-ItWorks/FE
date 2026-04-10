@@ -23,7 +23,6 @@ import { apiClient } from '@/lib/api-client'
 import { useToast } from '@/hooks/use-toast'
 import { 
   Search,
-  Shield,
   Ban,
   CheckCircle,
   Loader2

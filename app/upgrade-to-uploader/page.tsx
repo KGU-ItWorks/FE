@@ -24,7 +24,7 @@ interface UploaderRequest {
 export default function UpgradeToUploaderPage() {
   const router = useRouter()
   const { toast } = useToast()
-  const { user, refreshUser } = useAuth()
+  const { user } = useAuth()
   
   const [reason, setReason] = useState('')
   const [loading, setLoading] = useState(false)

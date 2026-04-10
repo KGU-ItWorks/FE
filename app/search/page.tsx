@@ -6,6 +6,7 @@ import Link from "next/link";
 import { BrowseHeader } from "@/components/browse-header";
 import { videoApi, type Video } from "@/lib/api";
 import { Play, Search as SearchIcon, Eye } from "lucide-react";
+import { formatDuration } from "@/lib/format";
 
 export default function SearchPage() {
   const searchParams = useSearchParams();
@@ -57,17 +58,6 @@ export default function SearchPage() {
     }
   };
 
-  const formatDuration = (seconds: number | null) => {
-    if (!seconds) return "0:00";
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-    }
-    return `${minutes}:${secs.toString().padStart(2, "0")}`;
-  };
 
   return (
     <div className="min-h-screen bg-background">

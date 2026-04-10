@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { useRouter, usePathname } from "next/navigation"
+import { usePathname } from "next/navigation"
 import { Search, Bell, ChevronDown, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -12,11 +12,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useAuth } from "@/contexts/AuthContext"
 
 export function BrowseHeader() {
-  const router = useRouter()
   const pathname = usePathname()
   const { user, logout } = useAuth()
   const [isScrolled, setIsScrolled] = useState(false)
@@ -110,6 +109,16 @@ export function BrowseHeader() {
             >
               내 영상
             </Link>
+            <Link
+              href="/favorites"
+              className={`text-sm font-medium transition ${
+                isActive("/favorites")
+                  ? "text-white font-bold"
+                  : "text-gray-400 hover:text-gray-200"
+              }`}
+            >
+              찜 목록
+            </Link>
           </nav>
         </div>
 
@@ -152,6 +161,11 @@ export function BrowseHeader() {
               <Link href="/my-videos">
                 <DropdownMenuItem className="cursor-pointer text-gray-300 hover:text-white">
                   내 영상
+                </DropdownMenuItem>
+              </Link>
+              <Link href="/favorites">
+                <DropdownMenuItem className="cursor-pointer text-gray-300 hover:text-white">
+                  ❤️ 찜 목록
                 </DropdownMenuItem>
               </Link>
               

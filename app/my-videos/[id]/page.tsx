@@ -19,6 +19,7 @@ import {
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
+import { formatDuration } from "@/lib/format";
 
 export default function VideoDetailPage({
   params,
@@ -99,20 +100,6 @@ export default function VideoDetailPage({
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
-  };
-
-  const formatDuration = (seconds: number | null) => {
-    if (!seconds) return "-";
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, "0")}:${secs
-        .toString()
-        .padStart(2, "0")}`;
-    }
-    return `${minutes}:${secs.toString().padStart(2, "0")}`;
   };
 
   const formatFileSize = (bytes: number) => {

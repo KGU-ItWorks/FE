@@ -21,6 +21,7 @@ import { apiClient } from "@/lib/api-client"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2, Video as VideoIcon, Clock, CheckCircle, XCircle, Edit, Trash2 } from "lucide-react"
 import Link from "next/link"
+import { formatDuration } from "@/lib/format";
 
 export default function MyVideosPage() {
   const { toast } = useToast()
@@ -117,13 +118,6 @@ export default function MyVideosPage() {
       default:
         return <Badge variant="secondary">{status}</Badge>
     }
-  }
-
-  const formatDuration = (seconds: number | null) => {
-    if (!seconds) return "-"
-    const minutes = Math.floor(seconds / 60)
-    const remainingSeconds = seconds % 60
-    return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`
   }
 
   const formatFileSize = (bytes: number) => {

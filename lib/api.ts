@@ -111,6 +111,40 @@ export const authApi = {
     }),
 }
 
+export interface FavoriteToggleResponse {
+  favorited: boolean
+  message: string
+}
+
+export interface FavoritesResponse {
+  favoriteId: number
+  createdAt: string
+  video: Video
+}
+
+export interface PageResponse<T> {
+  content: T[]
+  totalPages: number
+  totalElements: number
+  number: number
+  size: number
+}
+
+export const favoritesApi = {
+  toggle: (videoId: number) =>
+    apiRequest<FavoriteToggleResponse>(`/api/v1/interactions/favorites/${videoId}`, {
+      method: "POST",
+    }),
+
+  check: (videoId: number) =>
+    apiRequest<{ favorited: boolean }>(`/api/v1/interactions/favorites/${videoId}/status`),
+
+  getMyFavorites: (page: number = 0, size: number = 10) =>
+    apiRequest<PageResponse<FavoritesResponse>>(
+      `/api/v1/interactions/favorites?page=${page}&size=${size}`
+    ),
+}
+
 export const videoApi = {
   /**
    * 영상 업로드 (파일 + 메타데이터)
