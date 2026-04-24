@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BrowseHeader } from "@/components/browse-header";
-import { favoritesApi, type FavoritesResponse } from "@/lib/api";
+import { favoritesApi, toMediaUrl, type FavoritesResponse } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Heart, Play, Loader2 } from "lucide-react";
@@ -126,9 +126,9 @@ export default function FavoritesPage() {
                   <Link href={`/watch/${favorite.video.id}`}>
                     <div className="relative aspect-video overflow-hidden rounded-md bg-gray-900 mb-2">
                       {/* Thumbnail */}
-                      {favorite.video.thumbnailUrl ? (
+                      {toMediaUrl(favorite.video.thumbnailUrl) ? (
                         <img
-                          src={favorite.video.thumbnailUrl}
+                          src={toMediaUrl(favorite.video.thumbnailUrl)!}
                           alt={favorite.video.title}
                           className="h-full w-full object-cover transition duration-300 group-hover:scale-110"
                         />

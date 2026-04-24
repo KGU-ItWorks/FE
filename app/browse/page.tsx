@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BrowseHeader } from "@/components/browse-header";
 import { HeroVideoPlayer } from "@/components/hero-video-player";
-import { videoApi, type Video } from "@/lib/api";
+import { videoApi, toMediaUrl, type Video } from "@/lib/api";
 import { Play, Info, Clock, Eye } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import VideoCard from "@/components/VideoCard";
@@ -115,14 +115,14 @@ export default function BrowsePage() {
                 {/* 수정된 부분: (featuredVideo.s3Url || featuredVideo.cloudfrontUrl) 뒤에 || "" 를 추가하여 null 방지 */}
                 {showVideoPlayer && (featuredVideo.s3Url || featuredVideo.cloudfrontUrl) ? (
                     <HeroVideoPlayer
-                        src={featuredVideo.s3Url || featuredVideo.cloudfrontUrl || ""}
-                        poster={featuredVideo.thumbnailUrl || undefined}
+                        src={toMediaUrl(featuredVideo.s3Url || featuredVideo.cloudfrontUrl) || ""}
+                        poster={toMediaUrl(featuredVideo.thumbnailUrl) || undefined}
                     />
                 ) : (
                     <>
-                      {featuredVideo.thumbnailUrl ? (
+                      {toMediaUrl(featuredVideo.thumbnailUrl) ? (
                           <img
-                              src={featuredVideo.thumbnailUrl}
+                              src={toMediaUrl(featuredVideo.thumbnailUrl)!}
                               alt={featuredVideo.title}
                               className="h-full w-full object-cover object-center"
                           />

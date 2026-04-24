@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { videoApi, type Video } from "@/lib/api";
+import { videoApi, toMediaUrl, type Video } from "@/lib/api";
 import { BrowseHeader } from "@/components/browse-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -160,9 +160,9 @@ export default function VideoDetailPage({
           <div className="space-y-6 md:col-span-2">
             {/* Thumbnail */}
             <div className="aspect-video overflow-hidden rounded-lg bg-muted">
-              {video.thumbnailUrl ? (
+              {toMediaUrl(video.thumbnailUrl) ? (
                 <img
-                  src={video.thumbnailUrl}
+                  src={toMediaUrl(video.thumbnailUrl)!}
                   alt={video.title}
                   className="h-full w-full object-cover"
                 />
