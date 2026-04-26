@@ -1,5 +1,12 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
 
+// 로컬 경로(/thumbnails/..., /encoded/...)를 BE 절대 URL로 변환
+export function toMediaUrl(path: string | null | undefined): string | null {
+  if (!path) return null;
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  return `${API_BASE_URL}${path}`;
+}
+
 type Role = "ROLE_USER" | "ROLE_ADMIN" | "ROLE_UPLOADER"
 
 export interface User {

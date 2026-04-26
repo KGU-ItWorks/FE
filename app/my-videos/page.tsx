@@ -16,7 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { videoApi, type Video } from "@/lib/api"
+import { videoApi, toMediaUrl, type Video } from "@/lib/api"
 import { apiClient } from "@/lib/api-client"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2, Video as VideoIcon, Clock, CheckCircle, XCircle, Edit, Trash2 } from "lucide-react"
@@ -167,9 +167,9 @@ export default function MyVideosPage() {
                 <div className="flex items-start gap-6">
                   {/* Thumbnail */}
                   <div className="flex h-32 w-48 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted">
-                    {video.thumbnailUrl ? (
+                    {toMediaUrl(video.thumbnailUrl) ? (
                       <img
-                        src={video.thumbnailUrl}
+                        src={toMediaUrl(video.thumbnailUrl)!}
                         alt={video.title}
                         className="h-full w-full object-cover"
                       />

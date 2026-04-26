@@ -3,7 +3,7 @@
 import { use, useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import VideoPlayer from "@/components/VideoPlayer";
-import { videoApi, favoritesApi } from "@/lib/api";
+import { videoApi, favoritesApi, toMediaUrl } from "@/lib/api";
 import { ArrowLeft, ThumbsUp, ThumbsDown, Heart, Volume2 } from "lucide-react";
 import { formatDuration } from "@/lib/format";
 
@@ -167,8 +167,8 @@ export default function WatchPage({
       <div className="min-h-screen bg-black">
         <div className="relative w-full bg-black">
           <VideoPlayer
-              src={video.cloudfrontUrl || video.s3Url || ""}
-              poster={video.thumbnailUrl || undefined}
+              src={toMediaUrl(video.cloudfrontUrl || video.s3Url) || ""}
+              poster={toMediaUrl(video.thumbnailUrl) || undefined}
               autoplay={autoplay}
           />
         </div>
@@ -272,9 +272,9 @@ export default function WatchPage({
                           className="group text-left"
                       >
                         <div className="relative aspect-video overflow-hidden rounded-md bg-gray-900 mb-3">
-                          {relatedVideo.thumbnailUrl ? (
+                          {toMediaUrl(relatedVideo.thumbnailUrl) ? (
                               <img
-                                  src={relatedVideo.thumbnailUrl}
+                                  src={toMediaUrl(relatedVideo.thumbnailUrl)!}
                                   alt={relatedVideo.title}
                                   className="h-full w-full object-cover transition duration-300 group-hover:scale-110"
                               />

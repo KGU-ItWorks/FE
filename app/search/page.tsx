@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { BrowseHeader } from "@/components/browse-header";
-import { videoApi, type Video } from "@/lib/api";
+import { videoApi, toMediaUrl, type Video } from "@/lib/api";
 import { Play, Search as SearchIcon, Eye } from "lucide-react";
 import { formatDuration } from "@/lib/format";
 
@@ -101,9 +101,9 @@ export default function SearchPage() {
                   <Link key={video.id} href={`/watch/${video.id}`}>
                     <div className="group cursor-pointer">
                       <div className="relative aspect-video overflow-hidden rounded-md bg-muted mb-3">
-                        {video.thumbnailUrl ? (
+                        {toMediaUrl(video.thumbnailUrl) ? (
                           <img
-                            src={video.thumbnailUrl}
+                            src={toMediaUrl(video.thumbnailUrl)!}
                             alt={video.title}
                             className="h-full w-full object-cover transition group-hover:scale-105"
                           />

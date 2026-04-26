@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Play, Heart } from "lucide-react";
-import { favoritesApi, type Video } from "@/lib/api";
+import { favoritesApi, toMediaUrl, type Video } from "@/lib/api";
 import { formatDuration } from "@/lib/format";
 
 interface VideoCardProps {
@@ -40,9 +40,9 @@ export default function VideoCard({ video }: VideoCardProps) {
     <div className="group cursor-pointer">
     <div className="relative aspect-video overflow-hidden rounded-md bg-gray-900 mb-2">
         {/* Thumbnail */}
-    {video.thumbnailUrl ? (
+    {toMediaUrl(video.thumbnailUrl) ? (
             <img
-                src={video.thumbnailUrl}
+                src={toMediaUrl(video.thumbnailUrl)!}
         alt={video.title}
         className="h-full w-full object-cover object-center transition duration-300 group-hover:scale-110"
             />
