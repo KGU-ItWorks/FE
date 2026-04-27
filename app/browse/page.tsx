@@ -6,14 +6,14 @@ import { useRouter } from "next/navigation";
 import { BrowseHeader } from "@/components/browse-header";
 import { HeroVideoPlayer } from "@/components/hero-video-player";
 import { videoApi, toMediaUrl, type Video } from "@/lib/api";
-import { Play, Info, Clock, Eye } from "lucide-react";
+import { Play, Info, Clock, Eye, Megaphone } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import VideoCard from "@/components/VideoCard";
 import { formatDuration } from "@/lib/format";
 
 export default function BrowsePage() {
   const router = useRouter();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [featuredVideo, setFeaturedVideo] = useState<Video | null>(null);
@@ -180,6 +180,14 @@ export default function BrowsePage() {
                           상세 정보
                         </button>
                       </Link>
+                      {(user?.role === 'ROLE_ADVERTISER' || user?.role === 'ROLE_ADMIN') && (
+                        <Link href="/advertiser-studio">
+                          <button className="flex items-center gap-2 px-6 py-3 bg-yellow-500/80 backdrop-blur-sm text-white hover:bg-yellow-500 rounded font-semibold text-lg transition">
+                            <Megaphone className="h-5 w-5" />
+                            광고주 스튜디오
+                          </button>
+                        </Link>
+                      )}
                     </div>
                   </div>
                 </div>
