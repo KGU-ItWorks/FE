@@ -177,6 +177,24 @@ export function BrowseHeader() {
                   </DropdownMenuItem>
                 </Link>
               )}
+
+              {/* ROLE_USER, ROLE_UPLOADER인 경우 광고주 신청 링크 */}
+              {(user?.role === 'ROLE_USER' || user?.role === 'ROLE_UPLOADER') && (
+                <Link href="/upgrade-to-advertiser">
+                  <DropdownMenuItem className="cursor-pointer text-yellow-400 hover:text-yellow-300">
+                    📢 광고주 신청하기
+                  </DropdownMenuItem>
+                </Link>
+              )}
+
+              {/* ROLE_ADVERTISER인 경우 광고주 스튜디오 링크 */}
+              {user?.role === 'ROLE_ADVERTISER' && (
+                <Link href="/advertiser-studio">
+                  <DropdownMenuItem className="cursor-pointer text-yellow-400 hover:text-yellow-300">
+                    🎬 광고주 스튜디오
+                  </DropdownMenuItem>
+                </Link>
+              )}
               
               <DropdownMenuItem className="cursor-pointer text-gray-300 hover:text-white">계정</DropdownMenuItem>
               

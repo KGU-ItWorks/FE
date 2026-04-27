@@ -3,20 +3,18 @@
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { 
-  LayoutDashboard, 
-  Video, 
-  Users, 
-  Settings,
-  Shield,
+import {
+  LayoutDashboard,
+  Upload,
+  Video,
   Menu,
   X,
   Megaphone,
-  FileVideo
+  LogOut,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 
-export default function AdminLayout({
+export default function AdvertiserStudioLayout({
   children,
 }: {
   children: React.ReactNode
@@ -28,58 +26,40 @@ export default function AdminLayout({
   const [checking, setChecking] = useState(true)
 
   useEffect(() => {
-    // 로딩 중이면 대기
-    if (isLoading) {
-      console.log('[Admin] Auth is loading...')
-      return
-    }
+    if (isLoading) return
 
-    console.log('[Admin] User:', user)
-    console.log('[Admin] User role:', user?.role)
-
-    // 로그인 안 되어 있으면 로그인 페이지로
     if (!user) {
-      console.log('[Admin] No user, redirecting to login...')
       router.push('/login')
       return
     }
 
-    // 관리자 권한 체크
-    if (user.role !== 'ROLE_ADMIN') {
-      console.log('[Admin] User role:', user.role, '- Not admin, redirecting to browse...')
+    if (user.role !== 'ROLE_ADVERTISER' && user.role !== 'ROLE_ADMIN') {
       router.push('/browse')
       return
     }
 
-    console.log('[Admin] User is admin, showing admin page')
     setChecking(false)
   }, [user, isLoading, router])
 
-  // 로딩 중이거나 권한 체크 중이면 로딩 표시
   if (isLoading || checking) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto mb-4" />
           <p className="text-muted-foreground">권한 확인 중...</p>
         </div>
       </div>
     )
   }
 
-  // 권한 없으면 아무것도 렌더링 안 함 (리다이렉트 처리 중)
-  if (!user || user.role !== 'ROLE_ADMIN') {
+  if (!user || (user.role !== 'ROLE_ADVERTISER' && user.role !== 'ROLE_ADMIN')) {
     return null
   }
 
   const navigation = [
-    { name: '대시보드', href: '/admin/dashboard', icon: LayoutDashboard },
-    { name: '영상 관리', href: '/admin/videos', icon: Video },
-    { name: '사용자 관리', href: '/admin/users', icon: Users },
-    { name: '업로더 신청', href: '/admin/uploader-requests', icon: Shield },
-    { name: '광고주 신청', href: '/admin/advertiser-requests', icon: Megaphone },
-    { name: '광고 영상 관리', href: '/admin/ad-videos', icon: FileVideo },
-    { name: '설정', href: '/admin/settings', icon: Settings },
+    { name: '대시보드', href: '/advertiser-studio', icon: LayoutDashboard },
+    { name: '광고 영상 관리', href: '/advertiser-studio/videos', icon: Video },
+    { name: '영상 업로드', href: '/advertiser-studio/upload', icon: Upload },
   ]
 
   return (
@@ -105,10 +85,13 @@ export default function AdminLayout({
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="p-6 border-b border-border">
-            <Link href="/admin/dashboard">
-              <h1 className="text-2xl font-bold text-red-600">STREAMLY</h1>
-              <p className="text-sm text-muted-foreground">관리자 패널</p>
-            </Link>
+            <div className="flex items-center gap-2">
+              <Megaphone className="h-6 w-6 text-yellow-500" />
+              <div>
+                <h1 className="text-xl font-bold text-yellow-500">광고주 스튜디오</h1>
+                <p className="text-xs text-muted-foreground">STREAMLY for Advertisers</p>
+              </div>
+            </div>
           </div>
 
           {/* Navigation */}
@@ -121,10 +104,9 @@ export default function AdminLayout({
                   href={item.href}
                   className={`
                     flex items-center gap-3 px-4 py-3 rounded-lg transition
-                    ${
-                      isActive
-                        ? 'bg-primary text-primary-foreground'
-                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                    ${isActive
+                      ? 'bg-yellow-500 text-black font-semibold'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                     }
                   `}
                   onClick={() => setIsSidebarOpen(false)}
@@ -137,14 +119,15 @@ export default function AdminLayout({
           </nav>
 
           {/* User Info */}
-          <div className="p-4 border-t border-border">
-            <div className="mb-3 text-sm">
+          <div className="p-4 border-t border-border space-y-3">
+            <div className="text-sm">
               <p className="font-medium">{user.nickname || user.email}</p>
-              <p className="text-xs text-muted-foreground">{user.role}</p>
+              <p className="text-xs text-muted-foreground">광고주</p>
             </div>
             <Link href="/browse">
-              <button className="w-full px-4 py-2 text-sm bg-muted hover:bg-muted/80 rounded-lg transition">
-                사용자 페이지로 돌아가기
+              <button className="w-full flex items-center gap-2 px-4 py-2 text-sm bg-muted hover:bg-muted/80 rounded-lg transition">
+                <LogOut size={16} />
+                소비자 페이지로 이동
               </button>
             </Link>
           </div>

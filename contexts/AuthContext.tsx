@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { useRouter } from "next/navigation"
 import { apiClient } from "@/lib/api-client"
 
-type Role = "ROLE_USER" | "ROLE_ADMIN" | "ROLE_UPLOADER"
+type Role = "ROLE_USER" | "ROLE_ADMIN" | "ROLE_UPLOADER" | "ROLE_ADVERTISER"
 
 interface User {
   id: number
