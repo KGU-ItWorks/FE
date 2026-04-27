@@ -1,14 +1,17 @@
 "use client"
 
 import type React from "react"
-
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { BrowseHeader } from "@/components/browse-header"
-import { Play, Pause, Plus, Trash2 } from "lucide-react"
+import { Play, Pause, Plus, Trash2, Loader2 } from "lucide-react"
 import Link from "next/link"
+import { apiClient } from "@/lib/api-client"
+import { videoApi, toMediaUrl, type Video } from "@/lib/api"
+import { useToast } from "@/hooks/use-toast"
 
 interface AdMarker {
   id: string
@@ -31,16 +34,28 @@ const AD_CATEGORIES = [
 ]
 
 export default function AdSetupPage() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const { toast } = useToast()
+  const videoId = searchParams.get("videoId")
+
+  const [video, setVideo] = useState<Video | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
-  const [duration, setDuration] = useState(180) // Mock duration: 3 minutes
+  const [duration, setDuration] = useState(0)
   const [adMarkers, setAdMarkers] = useState<AdMarker[]>([])
   const [selectedMarker, setSelectedMarker] = useState<string | null>(null)
   const [isAddingMarker, setIsAddingMarker] = useState(false)
   const [newMarkerStart, setNewMarkerStart] = useState<number | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const timelineRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!videoId) return
+    videoApi.getVideoById(Number(videoId)).then(setVideo).catch(console.error)
+  }, [videoId])
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -103,10 +118,36 @@ export default function AdSetupPage() {
     setNewMarkerStart(null)
   }
 
-  const handleSubmit = () => {
-    // Backend integration will be added later
-    console.log("Ad markers:", adMarkers)
-    alert("광고 설정이 저장되었습니다!")
+  const handleSubmit = async () => {
+    if (!videoId) {
+      toast({ title: "오류", description: "videoId가 없습니다.", variant: "destructive" })
+      return
+    }
+    if (adMarkers.length === 0) {
+      toast({ title: "오류", description: "광고 구간을 하나 이상 추가해주세요.", variant: "destructive" })
+      return
+    }
+
+    try {
+      setSubmitting(true)
+      for (const marker of adMarkers) {
+        const h = Math.floor(marker.startTime / 3600)
+        const m = Math.floor((marker.startTime % 3600) / 60)
+        const s = Math.floor(marker.startTime % 60)
+        const startTimeFormatted = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
+        const durationSecs = Math.round(marker.endTime - marker.startTime)
+
+        await apiClient.post(
+          `/api/v1/videos/${videoId}/ai-fetch?startTime=${startTimeFormatted}&duration=${durationSecs}`
+        )
+      }
+      toast({ title: "완료", description: "광고 구간 설정이 완료됐습니다. AI 분석이 시작됩니다." })
+      router.push("/my-videos")
+    } catch (error: any) {
+      toast({ title: "오류", description: error.message, variant: "destructive" })
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -127,22 +168,35 @@ export default function AdSetupPage() {
             <div className="lg:col-span-2 space-y-6">
               {/* Video Player */}
               <div className="overflow-hidden rounded-lg border border-border bg-black">
-                <div className="relative aspect-video bg-muted/50">
-                  {/* Mock video player */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-center text-muted-foreground">
-                      <FileVideo className="mx-auto mb-4 h-16 w-16" />
-                      <p>영상 미리보기</p>
+                <div className="relative aspect-video bg-black">
+                  {video && (toMediaUrl(video.cloudfrontUrl) || toMediaUrl(video.s3Url)) ? (
+                    <video
+                      ref={videoRef}
+                      className="h-full w-full"
+                      src={(toMediaUrl(video.cloudfrontUrl) || toMediaUrl(video.s3Url))!}
+                      onLoadedMetadata={(e) => setDuration((e.target as HTMLVideoElement).duration)}
+                      onTimeUpdate={(e) => setCurrentTime((e.target as HTMLVideoElement).currentTime)}
+                      onPlay={() => setIsPlaying(true)}
+                      onPause={() => setIsPlaying(false)}
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-center text-muted-foreground">
+                        <FileVideo className="mx-auto mb-4 h-16 w-16" />
+                        <p>영상 미리보기</p>
+                      </div>
                     </div>
-                  </div>
-
-                  {/* Play/Pause overlay */}
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                  )}
+                  <div className="absolute inset-0 flex items-center justify-center">
                     <Button
                       size="icon"
                       variant="ghost"
                       className="h-16 w-16 rounded-full bg-black/50 hover:bg-black/70"
-                      onClick={() => setIsPlaying(!isPlaying)}
+                      onClick={() => {
+                        if (videoRef.current) {
+                          isPlaying ? videoRef.current.pause() : videoRef.current.play()
+                        }
+                      }}
                     >
                       {isPlaying ? <Pause className="h-8 w-8" /> : <Play className="h-8 w-8" fill="currentColor" />}
                     </Button>
@@ -324,8 +378,11 @@ export default function AdSetupPage() {
 
               {/* Action Buttons */}
               <div className="flex flex-col gap-3">
-                <Button onClick={handleSubmit} className="w-full" disabled={adMarkers.length === 0}>
-                  업로드 완료
+                <Button onClick={handleSubmit} className="w-full bg-red-600 hover:bg-red-700" disabled={adMarkers.length === 0 || submitting}>
+                  {submitting
+                    ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />처리 중...</>
+                    : "업로드 완료"
+                  }
                 </Button>
                 <Link href="/upload" className="w-full">
                   <Button variant="outline" className="w-full bg-transparent">
