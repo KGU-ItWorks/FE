@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -34,6 +34,14 @@ const AD_CATEGORIES = [
 ]
 
 export default function AdSetupPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+      <AdSetupContent />
+    </Suspense>
+  )
+}
+
+function AdSetupContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { toast } = useToast()
@@ -54,8 +62,27 @@ export default function AdSetupPage() {
 
   useEffect(() => {
     if (!videoId) return
-    videoApi.getVideoById(Number(videoId)).then(setVideo).catch(console.error)
-  }, [videoId])
+
+    const parsedId = Number(videoId)
+    if (!Number.isFinite(parsedId) || parsedId <= 0) {
+      toast({ title: "오류", description: "유효하지 않은 videoId입니다.", variant: "destructive" })
+      return
+    }
+
+    const controller = new AbortController()
+    videoApi
+      .getVideoById(parsedId)
+      .then((data) => {
+        if (!controller.signal.aborted) setVideo(data)
+      })
+      .catch((err: unknown) => {
+        if (controller.signal.aborted) return
+        const message = err instanceof Error ? err.message : "영상 정보를 불러오지 못했습니다."
+        toast({ title: "영상 로드 실패", description: message, variant: "destructive" })
+      })
+
+    return () => controller.abort()
+  }, [videoId, toast])
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -123,6 +150,11 @@ export default function AdSetupPage() {
       toast({ title: "오류", description: "videoId가 없습니다.", variant: "destructive" })
       return
     }
+    const parsedId = Number(videoId)
+    if (!Number.isFinite(parsedId) || parsedId <= 0) {
+      toast({ title: "오류", description: "유효하지 않은 videoId입니다.", variant: "destructive" })
+      return
+    }
     if (adMarkers.length === 0) {
       toast({ title: "오류", description: "광고 구간을 하나 이상 추가해주세요.", variant: "destructive" })
       return
@@ -130,21 +162,42 @@ export default function AdSetupPage() {
 
     try {
       setSubmitting(true)
-      for (const marker of adMarkers) {
-        const h = Math.floor(marker.startTime / 3600)
-        const m = Math.floor((marker.startTime % 3600) / 60)
-        const s = Math.floor(marker.startTime % 60)
-        const startTimeFormatted = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
-        const durationSecs = Math.round(marker.endTime - marker.startTime)
 
-        await apiClient.post(
-          `/api/v1/videos/${videoId}/ai-fetch?startTime=${startTimeFormatted}&duration=${durationSecs}`
-        )
+      const results = await Promise.allSettled(
+        adMarkers.map((marker) => {
+          const h = Math.floor(marker.startTime / 3600)
+          const m = Math.floor((marker.startTime % 3600) / 60)
+          const s = Math.floor(marker.startTime % 60)
+          const startTimeFormatted = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
+          const durationSecs = Math.round(marker.endTime - marker.startTime)
+          return apiClient.post(
+            `/api/v1/videos/${parsedId}/ai-fetch?startTime=${startTimeFormatted}&duration=${durationSecs}`
+          )
+        })
+      )
+
+      const failed = results.filter((r): r is PromiseRejectedResult => r.status === "rejected")
+      const succeeded = results.length - failed.length
+
+      if (failed.length === 0) {
+        toast({ title: "완료", description: "광고 구간 설정이 완료됐습니다. AI 분석이 시작됩니다." })
+        router.push("/my-videos")
+      } else if (succeeded > 0) {
+        toast({
+          title: "일부 실패",
+          description: `${succeeded}건 성공, ${failed.length}건 실패했습니다. 실패한 구간을 확인 후 다시 시도해주세요.`,
+          variant: "destructive",
+        })
+      } else {
+        toast({
+          title: "오류",
+          description: "모든 광고 구간 전송에 실패했습니다. 다시 시도해주세요.",
+          variant: "destructive",
+        })
       }
-      toast({ title: "완료", description: "광고 구간 설정이 완료됐습니다. AI 분석이 시작됩니다." })
-      router.push("/my-videos")
-    } catch (error: any) {
-      toast({ title: "오류", description: error.message, variant: "destructive" })
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다."
+      toast({ title: "오류", description: message, variant: "destructive" })
     } finally {
       setSubmitting(false)
     }
