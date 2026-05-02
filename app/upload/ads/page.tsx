@@ -170,7 +170,8 @@ function AdSetupContent() {
           const s = Math.floor(marker.startTime % 60)
           const startTimeFormatted = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
           const durationSecs = Math.round(marker.endTime - marker.startTime)
-          return apiClient.post(
+          // BE returns 202 Accepted with no body — post<void> avoids JSON parse errors
+          return apiClient.post<void>(
             `/api/v1/videos/${parsedId}/ai-fetch?startTime=${startTimeFormatted}&duration=${durationSecs}`
           )
         })
@@ -180,7 +181,10 @@ function AdSetupContent() {
       const succeeded = results.length - failed.length
 
       if (failed.length === 0) {
-        toast({ title: "완료", description: "광고 구간 설정이 완료됐습니다. AI 분석이 시작됩니다." })
+        toast({
+          title: "요청 완료",
+          description: `${succeeded}개 구간이 AI 처리 대기열에 추가됐습니다. 백그라운드에서 처리됩니다.`,
+        })
         router.push("/my-videos")
       } else if (succeeded > 0) {
         toast({

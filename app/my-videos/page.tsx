@@ -200,7 +200,7 @@ export default function MyVideosPage() {
                           <Edit className="h-4 w-4 mr-1" />
                           수정
                         </Button>
-                        {video.status === "COMPLETED" && (
+                        {video.approvalStatus === "APPROVED" && (
                           <Button
                             size="sm"
                             variant="outline"
