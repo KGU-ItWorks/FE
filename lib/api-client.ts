@@ -83,8 +83,8 @@ class ApiClient {
         throw new Error(errorData.message || "요청에 실패했습니다.");
       }
 
-      // 204 No Content 처리
-      if (response.status === 204) {
+      // 204 No Content / 202 Accepted with no body
+      if (response.status === 204 || response.status === 202) {
         return null as T;
       }
 

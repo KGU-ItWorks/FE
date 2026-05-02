@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { BrowseHeader } from "@/components/browse-header"
 import { EditVideoModal } from "@/components/edit-video-modal"
 import { Button } from "@/components/ui/button"
@@ -19,12 +20,13 @@ import {
 import { videoApi, toMediaUrl, type Video } from "@/lib/api"
 import { apiClient } from "@/lib/api-client"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2, Video as VideoIcon, Clock, CheckCircle, XCircle, Edit, Trash2 } from "lucide-react"
+import { Loader2, Video as VideoIcon, Clock, CheckCircle, XCircle, Edit, Trash2, Megaphone } from "lucide-react"
 import Link from "next/link"
 import { formatDuration } from "@/lib/format";
 
 export default function MyVideosPage() {
   const { toast } = useToast()
+  const router = useRouter()
   const [videos, setVideos] = useState<Video[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(0)
@@ -198,6 +200,18 @@ export default function MyVideosPage() {
                           <Edit className="h-4 w-4 mr-1" />
                           수정
                         </Button>
+                        {video.approvalStatus === "APPROVED" &&
+                            (video.status === "UPLOADED" || video.status === "COMPLETED") && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-yellow-500 text-yellow-500 hover:bg-yellow-500/10"
+                            onClick={() => router.push(`/upload/ads?videoId=${video.id}`)}
+                          >
+                            <Megaphone className="h-4 w-4 mr-1" />
+                            광고 설정
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="destructive"
