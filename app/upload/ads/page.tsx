@@ -73,7 +73,23 @@ function AdSetupContent() {
     videoApi
       .getVideoById(parsedId)
       .then((data) => {
-        if (!controller.signal.aborted) setVideo(data)
+        if (controller.signal.aborted) return
+        const playableUrl = toMediaUrl(data.cloudfrontUrl) || toMediaUrl(data.s3Url)
+        const canConfigureAds =
+            data.approvalStatus === "APPROVED" &&
+            (data.status === "UPLOADED" || data.status === "COMPLETED") &&
+            !!playableUrl
+
+        if (!canConfigureAds) {
+          toast({
+            title: "접근 불가",
+            description: "광고 설정은 승인된 업로드 영상에서만 가능합니다.",
+            variant: "destructive",
+          })
+          router.replace("/my-videos")
+          return
+        }
+        setVideo(data)
       })
       .catch((err: unknown) => {
         if (controller.signal.aborted) return
