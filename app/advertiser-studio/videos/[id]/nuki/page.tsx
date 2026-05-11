@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { apiClient } from '@/lib/api-client'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Download, ImageIcon, Loader2 } from 'lucide-react'
+import { ArrowLeft, Download, ImageIcon, Loader2, XCircle, Clock } from 'lucide-react'
 
 interface NukiImagesResponse {
   adVideoId: number
@@ -24,6 +24,13 @@ export default function NukiGalleryPage() {
   useEffect(() => {
     loadNukiImages()
   }, [id])
+
+  // PROCESSING/PENDING 상태면 30초마다 자동 갱신
+  useEffect(() => {
+    if (!data || data.status === 'DONE' || data.status === 'FAILED') return
+    const timer = setInterval(loadNukiImages, 30_000)
+    return () => clearInterval(timer)
+  }, [data?.status])
 
   const loadNukiImages = async () => {
     try {
@@ -54,6 +61,80 @@ export default function NukiGalleryPage() {
     })
   }
 
+  const renderBody = () => {
+    if (loading) {
+      return (
+        <div className="flex justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-yellow-500" />
+        </div>
+      )
+    }
+
+    if (!data) return null
+
+    if (data.status === 'PROCESSING' || data.status === 'PENDING') {
+      return (
+        <div className="text-center py-20 border border-dashed border-border rounded-xl space-y-4">
+          <Loader2 className="h-12 w-12 animate-spin text-yellow-500 mx-auto" />
+          <p className="font-semibold text-lg">AI가 누끼를 추출하는 중입니다</p>
+          <p className="text-sm text-muted-foreground">
+            영상 길이에 따라 30분~1시간 이상 소요될 수 있습니다.<br />
+            처리가 완료되면 자동으로 업데이트됩니다.
+          </p>
+          <p className="text-xs text-muted-foreground">30초마다 자동 새로고침</p>
+        </div>
+      )
+    }
+
+    if (data.status === 'FAILED') {
+      return (
+        <div className="text-center py-20 border border-dashed border-destructive/40 rounded-xl space-y-3 bg-destructive/5">
+          <XCircle className="h-12 w-12 text-destructive mx-auto" />
+          <p className="font-semibold text-lg">누끼 처리에 실패했습니다</p>
+          <p className="text-sm text-muted-foreground">영상을 다시 업로드하거나 관리자에게 문의해주세요.</p>
+        </div>
+      )
+    }
+
+    if (data.imageUrls.length === 0) {
+      return (
+        <div className="text-center py-16 border border-dashed border-border rounded-xl">
+          <ImageIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <p className="font-semibold">감지된 객체가 없습니다</p>
+          <p className="text-sm text-muted-foreground mt-1">선택한 카테고리의 객체가 영상에서 발견되지 않았습니다</p>
+        </div>
+      )
+    }
+
+    return (
+      <>
+        <p className="text-sm text-muted-foreground">총 {data.imageUrls.length}장</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+          {data.imageUrls.map((url) => (
+            <div
+              key={url}
+              className="group relative aspect-square rounded-xl border border-border bg-muted overflow-hidden cursor-pointer hover:border-yellow-500 transition"
+              style={{ backgroundImage: 'repeating-conic-gradient(#e5e7eb 0% 25%, #ffffff 0% 50%)', backgroundSize: '20px 20px' }}
+              onClick={() => setSelected(url)}
+            >
+              <img
+                src={url}
+                alt="누끼 이미지"
+                className="w-full h-full object-contain"
+              />
+              <button
+                className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition bg-black/60 rounded-lg p-1.5"
+                onClick={(e) => { e.stopPropagation(); handleDownload(url) }}
+              >
+                <Download className="h-3.5 w-3.5 text-white" />
+              </button>
+            </div>
+          ))}
+        </div>
+      </>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -68,52 +149,15 @@ export default function NukiGalleryPage() {
             <p className="text-muted-foreground text-sm mt-0.5">영상 #{id} · AI가 추출한 누끼 이미지</p>
           </div>
         </div>
-        {data && data.imageUrls.length > 0 && (
+        {data?.status === 'DONE' && data.imageUrls.length > 0 && (
           <Button variant="outline" onClick={handleDownloadAll}>
             <Download className="h-4 w-4 mr-2" />전체 다운로드
           </Button>
         )}
       </div>
 
-      {loading ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-yellow-500" />
-        </div>
-      ) : !data || data.imageUrls.length === 0 ? (
-        <div className="text-center py-16 border border-dashed border-border rounded-xl">
-          <ImageIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <p className="font-semibold">누끼 이미지가 없습니다</p>
-          <p className="text-sm text-muted-foreground mt-1">AI 처리가 완료되지 않았거나 감지된 객체가 없습니다</p>
-        </div>
-      ) : (
-        <>
-          <p className="text-sm text-muted-foreground">총 {data.imageUrls.length}장</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-            {data.imageUrls.map((url) => (
-              <div
-                key={url}
-                className="group relative aspect-square rounded-xl border border-border bg-muted overflow-hidden cursor-pointer hover:border-yellow-500 transition"
-                style={{ backgroundImage: 'url(/checkerboard.png)', backgroundSize: '20px' }}
-                onClick={() => setSelected(url)}
-              >
-                <img
-                  src={url}
-                  alt="누끼 이미지"
-                  className="w-full h-full object-contain"
-                />
-                <button
-                  className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition bg-black/60 rounded-lg p-1.5"
-                  onClick={(e) => { e.stopPropagation(); handleDownload(url) }}
-                >
-                  <Download className="h-3.5 w-3.5 text-white" />
-                </button>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
+      {renderBody()}
 
-      {/* 라이트박스 */}
       {selected && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
@@ -121,7 +165,7 @@ export default function NukiGalleryPage() {
         >
           <div
             className="relative max-w-lg w-full rounded-2xl overflow-hidden bg-muted"
-            style={{ backgroundImage: 'url(/checkerboard.png)', backgroundSize: '20px' }}
+            style={{ backgroundImage: 'repeating-conic-gradient(#e5e7eb 0% 25%, #ffffff 0% 50%)', backgroundSize: '20px 20px' }}
             onClick={(e) => e.stopPropagation()}
           >
             <img src={selected} alt="누끼 이미지" className="w-full object-contain max-h-[70vh]" />
