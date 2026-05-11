@@ -6,15 +6,29 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
-import { Upload, Video, Loader2 } from 'lucide-react'
+import { Upload, Video, Loader2, Tag } from 'lucide-react'
 
 export default function AdvertiserStudioUploadPage() {
   const router = useRouter()
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+const CATEGORIES = [
+  { value: 'FASHION',     label: '패션 (의류·신발·가방)' },
+  { value: 'FOOD',        label: '식품·음료' },
+  { value: 'ELECTRONICS', label: '전자기기' },
+  { value: 'BEAUTY',      label: '뷰티·화장품' },
+  { value: 'FURNITURE',   label: '가구·인테리어' },
+  { value: 'SPORTS',      label: '스포츠용품' },
+  { value: 'CAR',         label: '자동차' },
+  { value: 'PET',         label: '반려동물용품' },
+  { value: 'BOOK',        label: '도서·미디어' },
+  { value: 'TOY',         label: '완구·피규어' },
+] as const
+
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [objectCategory, setObjectCategory] = useState('')
   const [videoFile, setVideoFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [dragOver, setDragOver] = useState(false)
@@ -39,6 +53,10 @@ export default function AdvertiserStudioUploadPage() {
       toast({ title: '입력 오류', description: '제목을 입력해주세요', variant: 'destructive' })
       return
     }
+    if (!objectCategory) {
+      toast({ title: '입력 오류', description: '카테고리를 선택해주세요', variant: 'destructive' })
+      return
+    }
     if (!videoFile) {
       toast({ title: '파일 오류', description: '영상 파일을 선택해주세요', variant: 'destructive' })
       return
@@ -49,7 +67,7 @@ export default function AdvertiserStudioUploadPage() {
 
       const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
       const formData = new FormData()
-      formData.append('request', new Blob([JSON.stringify({ title, description })], { type: 'application/json' }))
+      formData.append('request', new Blob([JSON.stringify({ title, description, objectCategory })], { type: 'application/json' }))
       formData.append('videoFile', videoFile)
 
       const response = await fetch(`${baseUrl}/api/v1/advertiser/videos`, {
@@ -132,6 +150,27 @@ export default function AdvertiserStudioUploadPage() {
           <Textarea placeholder="영상 설명을 입력하세요 (선택)" rows={4} value={description}
             onChange={(e) => setDescription(e.target.value)} className="resize-none" />
         </div>
+        <div>
+          <label className="block text-sm font-medium mb-2">
+            <Tag className="inline h-3.5 w-3.5 mr-1 mb-0.5" />
+            누끼 추출 카테고리 <span className="text-red-500">*</span>
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat.value}
+                type="button"
+                onClick={() => setObjectCategory(cat.value)}
+                className={`px-3 py-2 rounded-lg border text-sm text-left transition-colors
+                  ${objectCategory === cat.value
+                    ? 'border-yellow-500 bg-yellow-500/10 text-yellow-600 font-medium'
+                    : 'border-border hover:border-yellow-500/50'}`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* 안내 */}
@@ -146,7 +185,7 @@ export default function AdvertiserStudioUploadPage() {
 
       <Button
         onClick={handleSubmit}
-        disabled={uploading || !videoFile || !title.trim()}
+        disabled={uploading || !videoFile || !title.trim() || !objectCategory}
         className="w-full bg-yellow-500 text-black hover:bg-yellow-400 font-semibold"
         size="lg"
       >

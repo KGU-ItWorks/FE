@@ -10,7 +10,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Video, Upload, Trash2, CheckCircle, XCircle, Clock, Loader2, ImageIcon } from 'lucide-react'
+import { Video, Upload, Trash2, CheckCircle, XCircle, Clock, Loader2, ImageIcon, Eye } from 'lucide-react'
 
 interface AdVideo {
   id: number
@@ -128,11 +128,17 @@ export default function AdvertiserVideosPage() {
                   )}
                   {adVideo.status === 'DONE' && (
                     <div className="mt-2 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <ImageIcon className="h-4 w-4 text-green-500" />
-                        <span className="text-sm font-medium text-green-500">누끼 이미지 처리 완료</span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <ImageIcon className="h-4 w-4 text-green-500" />
+                          <span className="text-sm font-medium text-green-500">누끼 이미지 처리 완료</span>
+                        </div>
+                        <Link href={`/advertiser-studio/videos/${adVideo.id}/nuki`}>
+                          <Button size="sm" variant="outline" className="border-green-500/50 text-green-600 hover:bg-green-500/10">
+                            <Eye className="h-3.5 w-3.5 mr-1" />누끼 보기
+                          </Button>
+                        </Link>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">{adVideo.nukiDirPath}</p>
                     </div>
                   )}
                 </div>
