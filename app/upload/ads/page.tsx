@@ -22,15 +22,14 @@ interface AdMarker {
 
 const AD_CATEGORIES = [
   { value: "laptop", label: "노트북", color: "bg-blue-500" },
-  { value: "refrigerator", label: "냉장고", color: "bg-cyan-500" },
   { value: "chair", label: "의자", color: "bg-purple-500" },
   { value: "smartphone", label: "스마트폰", color: "bg-pink-500" },
   { value: "tv", label: "TV", color: "bg-orange-500" },
-  { value: "car", label: "자동차", color: "bg-red-500" },
-  { value: "fashion", label: "패션/의류", color: "bg-yellow-500" },
+  { value: "can", label: "캔", color: "bg-red-500" },
+  { value: "bottle", label: "병", color: "bg-red-500" },
+  { value: "snack", label: "간식", color: "bg-red-500" },
   { value: "food", label: "식품", color: "bg-green-500" },
   { value: "beauty", label: "뷰티", color: "bg-rose-500" },
-  { value: "home", label: "홈/인테리어", color: "bg-amber-500" },
 ]
 
 export default function AdSetupPage() {
@@ -188,7 +187,7 @@ function AdSetupContent() {
           const durationSecs = Math.round(marker.endTime - marker.startTime)
           // BE returns 202 Accepted with no body — post<void> avoids JSON parse errors
           return apiClient.post<void>(
-            `/api/v1/videos/${parsedId}/ai-fetch?startTime=${startTimeFormatted}&duration=${durationSecs}`
+            `/api/v1/videos/${parsedId}/ai-fetch?startTime=${startTimeFormatted}&duration=${durationSecs}&objectPrompt=${marker.category}`
           )
         })
       )
@@ -454,7 +453,7 @@ function AdSetupContent() {
                 <Button onClick={handleSubmit} className="w-full bg-red-600 hover:bg-red-700" disabled={adMarkers.length === 0 || submitting}>
                   {submitting
                     ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />처리 중...</>
-                    : "업로드 완료"
+                    : "광고 설정 완료"
                   }
                 </Button>
                 <Link href="/upload" className="w-full">
