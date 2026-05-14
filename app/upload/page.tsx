@@ -42,7 +42,7 @@ export default function UploadPage() {
     }
   }, [user, isLoading, router])
 
-  if (!isLoading && user && user.role === 'ROLE_USER') {
+  if (!isLoading && user && user.role !== 'ROLE_UPLOADER' && user.role !== 'ROLE_ADMIN') {
     return (
         <div className="min-h-screen bg-background">
           <BrowseHeader />
@@ -70,7 +70,7 @@ export default function UploadPage() {
     )
   }
 
-  if (isLoading || !user || (user.role !== 'ROLE_UPLOADER' && user.role !== 'ROLE_ADMIN')) {
+  if (isLoading || !user) {
     return null
   }
 
