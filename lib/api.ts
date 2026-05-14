@@ -164,14 +164,20 @@ export const videoApi = {
   ): Promise<Video> => {
     const formData = new FormData()
 
-    // 영상 파일
-    formData.append("file", videoFile)
+    // 영상 파일 — BE expects part name "videoFile"
+    formData.append("videoFile", videoFile)
 
-    // 메타데이터
-    formData.append("title", data.title)
-    if (data.description) formData.append("description", data.description)
-    if (data.category) formData.append("category", data.category)
-    if (data.ageRating) formData.append("ageRating", data.ageRating)
+    // 메타데이터 — BE expects a single JSON part named "request"
+    const requestBlob = new Blob(
+      [JSON.stringify({
+        title: data.title,
+        description: data.description || null,
+        category: data.category || null,
+        ageRating: data.ageRating || null,
+      })],
+      { type: "application/json" }
+    )
+    formData.append("request", requestBlob)
 
     // 썸네일 (옵션)
     if (thumbnailFile) {
@@ -212,7 +218,7 @@ export const videoApi = {
         reject(new Error("업로드 취소됨"))
       })
 
-      xhr.open("POST", `${API_BASE_URL}/api/v1/videos/upload`)
+      xhr.open("POST", `${API_BASE_URL}/api/videos/upload`)
       xhr.withCredentials = true
       
       // CSRF 보호를 위한 커스텀 헤더 추가
