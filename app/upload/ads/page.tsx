@@ -187,7 +187,7 @@ function AdSetupContent() {
           const durationSecs = Math.round(marker.endTime - marker.startTime)
           // BE returns 202 Accepted with no body — post<void> avoids JSON parse errors
           return apiClient.post<void>(
-            `/api/v1/videos/${parsedId}/ai-fetch?startTime=${startTimeFormatted}&duration=${durationSecs}&objectPrompt=${marker.category}`
+            `/api/v1/video-compositions/${parsedId}/ai-fetch?startTime=${startTimeFormatted}&duration=${durationSecs}&objectPrompt=${marker.category}`
           )
         })
       )

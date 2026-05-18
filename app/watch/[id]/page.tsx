@@ -4,6 +4,7 @@ import { use, useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import VideoPlayer from "@/components/VideoPlayer";
 import { videoApi, favoritesApi, toMediaUrl } from "@/lib/api";
+import { apiClient } from "@/lib/api-client";
 import { ArrowLeft, ThumbsUp, ThumbsDown, Heart, Volume2 } from "lucide-react";
 import { formatDuration } from "@/lib/format";
 
@@ -41,6 +42,7 @@ export default function WatchPage({
   const autoplay = searchParams?.get('autoplay') === 'true';
 
   const [video, setVideo] = useState<Video | null>(null);
+  const [playlistUrl, setPlaylistUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [relatedVideos, setRelatedVideos] = useState<Video[]>([]);
@@ -58,6 +60,16 @@ export default function WatchPage({
         const data = await videoApi.getVideoById(videoId);
 
         if (!cancelled) setVideo(data as unknown as Video);
+
+        // Resolve user-specific playlist (composed version or base)
+        try {
+          const playlistData = await apiClient.get<{ playlistUrl: string }>(
+            `/api/v1/videos/${videoId}/playlist`
+          );
+          if (!cancelled) setPlaylistUrl(playlistData.playlistUrl);
+        } catch {
+          // Falls back to cloudfrontUrl / s3Url below
+        }
 
         if (data.category) {
           loadRelatedVideos(data.category);
@@ -167,7 +179,7 @@ export default function WatchPage({
       <div className="min-h-screen bg-black">
         <div className="relative w-full bg-black">
           <VideoPlayer
-              src={toMediaUrl(video.cloudfrontUrl || video.s3Url) || ""}
+              src={toMediaUrl(playlistUrl || video.cloudfrontUrl || video.s3Url) || ""}
               poster={toMediaUrl(video.thumbnailUrl) || undefined}
               autoplay={autoplay}
           />
