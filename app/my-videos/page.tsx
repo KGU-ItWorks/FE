@@ -20,6 +20,7 @@ import {
 import { videoApi, toMediaUrl, type Video } from "@/lib/api"
 import { apiClient } from "@/lib/api-client"
 import { useToast } from "@/hooks/use-toast"
+import { usePendingVideoStatuses } from "@/hooks/use-composition-notifier"
 import { Loader2, Video as VideoIcon, Clock, CheckCircle, XCircle, Edit, Trash2, Megaphone } from "lucide-react"
 import Link from "next/link"
 import { formatDuration } from "@/lib/format";
@@ -34,6 +35,7 @@ export default function MyVideosPage() {
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null)
   const [showEditModal, setShowEditModal] = useState(false)
   const [deleteVideoId, setDeleteVideoId] = useState<number | null>(null)
+  const pendingVideoStatuses = usePendingVideoStatuses()
 
   useEffect(() => {
     loadVideos()
@@ -225,6 +227,14 @@ export default function MyVideosPage() {
 
                     <div className="flex flex-wrap gap-2">
                       {getStatusBadge(video.status)}
+                      {pendingVideoStatuses.has(video.id) && (
+                        <Badge className="flex items-center gap-1 bg-yellow-500 text-black hover:bg-yellow-500">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          {pendingVideoStatuses.get(video.id) === "PROCESSING"
+                            ? "AI 합성 처리 중"
+                            : "AI 합성 대기 중"}
+                        </Badge>
+                      )}
                       {video.category && <Badge variant="outline">{video.category}</Badge>}
                       {video.ageRating && <Badge variant="outline">{video.ageRating}</Badge>}
                       {video.approvalStatus === "PENDING" && <Badge variant="secondary">검토 대기</Badge>}
