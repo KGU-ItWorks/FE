@@ -12,6 +12,7 @@ import Link from "next/link"
 import { apiClient } from "@/lib/api-client"
 import { videoApi, toMediaUrl, type Video } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
+import { addPendingComposition } from "@/hooks/use-composition-notifier"
 
 interface AdMarker {
   id: string
@@ -179,16 +180,21 @@ function AdSetupContent() {
       setSubmitting(true)
 
       const results = await Promise.allSettled(
-        adMarkers.map((marker) => {
+        adMarkers.map(async (marker) => {
           const h = Math.floor(marker.startTime / 3600)
           const m = Math.floor((marker.startTime % 3600) / 60)
           const s = Math.floor(marker.startTime % 60)
           const startTimeFormatted = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
           const durationSecs = Math.round(marker.endTime - marker.startTime)
-          // BE returns 202 Accepted with no body — post<void> avoids JSON parse errors
-          return apiClient.post<void>(
+          const data = await apiClient.post<{ compositionId: number }>(
             `/api/v1/video-compositions/${parsedId}/ai-fetch?startTime=${startTimeFormatted}&duration=${durationSecs}&objectPrompt=${marker.category}`
           )
+          // Track for global completion notification
+          addPendingComposition({
+            compositionId: data.compositionId,
+            videoId: parsedId,
+            videoTitle: video?.title ?? `영상 #${parsedId}`,
+          })
         })
       )
 

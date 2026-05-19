@@ -83,8 +83,8 @@ class ApiClient {
         throw new Error(errorData.message || "요청에 실패했습니다.");
       }
 
-      // 204 No Content / 202 Accepted with no body
-      if (response.status === 204 || response.status === 202) {
+      // 204 No Content — never has a body
+      if (response.status === 204) {
         return null as T;
       }
 
@@ -102,8 +102,9 @@ class ApiClient {
         return text as T;
       }
 
-      // 기타 경우 JSON으로 시도
-      return await response.json();
+      // 기타 경우 JSON으로 시도 (빈 바디면 null 반환)
+      const text = await response.text();
+      return text ? JSON.parse(text) : null as T;
     } catch (error) {
       if (process.env.NODE_ENV === "development" && !endpoint.includes("/users/me")) {
         console.error(`API 요청 실패: ${endpoint}`, error);
