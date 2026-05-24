@@ -183,8 +183,8 @@ function AdSetupContent() {
         const clamped = Math.max(0, Math.min(value, Math.floor(duration)))
         const updated = { ...m, [field]: clamped }
         if (updated.startTime > updated.endTime) {
-          if (field === "startTime") updated.endTime   = updated.startTime
-          else                        updated.startTime = updated.endTime
+          // Swap so the range stays valid instead of collapsing to 0s
+          ;[updated.startTime, updated.endTime] = [updated.endTime, updated.startTime]
         }
         return updated
       })
