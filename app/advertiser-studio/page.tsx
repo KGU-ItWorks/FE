@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { apiClient } from '@/lib/api-client'
-import { Upload, Video, CheckCircle, Clock, XCircle, Loader2, ArrowRight } from 'lucide-react'
+import { Upload, Video, CheckCircle, Clock, XCircle, Loader2, ArrowRight, ClipboardCheck } from 'lucide-react'
 
 interface Stats {
   total: number
@@ -11,6 +11,7 @@ interface Stats {
   processing: number
   done: number
   failed: number
+  pendingReview: number   // compositions awaiting advertiser approval
 }
 
 interface AdVideo {
@@ -21,7 +22,7 @@ interface AdVideo {
 }
 
 export default function AdvertiserStudioPage() {
-  const [stats, setStats] = useState<Stats>({ total: 0, pending: 0, processing: 0, done: 0, failed: 0 })
+  const [stats, setStats] = useState<Stats>({ total: 0, pending: 0, processing: 0, done: 0, failed: 0, pendingReview: 0 })
   const [recentVideos, setRecentVideos] = useState<AdVideo[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -31,15 +32,23 @@ export default function AdvertiserStudioPage() {
 
   const loadDashboard = async () => {
     try {
-      const data = await apiClient.get<any>('/api/v1/advertiser/videos?page=0&size=5')
-      const videos: AdVideo[] = data.content || []
+      const [adData, compositionData] = await Promise.allSettled([
+        apiClient.get<any>('/api/v1/advertiser/videos?page=0&size=5'),
+        apiClient.get<any>('/api/v1/video-compositions/pending?page=0&size=1'),
+      ])
+
+      const videos: AdVideo[] = adData.status === 'fulfilled' ? (adData.value.content || []) : []
+      const totalElements = adData.status === 'fulfilled' ? (adData.value.totalElements || 0) : 0
+      const pendingReview = compositionData.status === 'fulfilled' ? (compositionData.value.totalElements || 0) : 0
+
       setRecentVideos(videos)
       setStats({
-        total: data.totalElements || 0,
-        pending:    videos.filter(v => v.status === 'PENDING').length,
-        processing: videos.filter(v => v.status === 'PROCESSING').length,
-        done:       videos.filter(v => v.status === 'DONE').length,
-        failed:     videos.filter(v => v.status === 'FAILED').length,
+        total:       totalElements,
+        pending:     videos.filter(v => v.status === 'PENDING').length,
+        processing:  videos.filter(v => v.status === 'PROCESSING').length,
+        done:        videos.filter(v => v.status === 'DONE').length,
+        failed:      videos.filter(v => v.status === 'FAILED').length,
+        pendingReview,
       })
     } catch (e) {
       console.error(e)
@@ -73,12 +82,13 @@ export default function AdvertiserStudioPage() {
       </div>
 
       {/* 통계 카드 */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {[
-          { label: '전체 영상', value: stats.total, color: 'text-foreground', bg: 'bg-card' },
-          { label: '처리 대기', value: stats.pending, color: 'text-muted-foreground', bg: 'bg-card' },
-          { label: '누끼 완료', value: stats.done, color: 'text-green-500', bg: 'bg-green-500/10' },
-          { label: '처리 실패', value: stats.failed, color: 'text-destructive', bg: 'bg-destructive/10' },
+          { label: '전체 광고 영상', value: stats.total,         color: 'text-foreground',    bg: 'bg-card' },
+          { label: '처리 대기',      value: stats.pending,       color: 'text-muted-foreground', bg: 'bg-card' },
+          { label: '누끼 완료',      value: stats.done,          color: 'text-green-500',     bg: 'bg-green-500/10' },
+          { label: '처리 실패',      value: stats.failed,        color: 'text-destructive',   bg: 'bg-destructive/10' },
+          { label: '합성 검토 대기', value: stats.pendingReview, color: 'text-yellow-500',    bg: 'bg-yellow-500/10' },
         ].map(({ label, value, color, bg }) => (
           <div key={label} className={`${bg} border border-border rounded-xl p-5`}>
             <p className={`text-3xl font-bold ${color}`}>{value}</p>
@@ -88,7 +98,22 @@ export default function AdvertiserStudioPage() {
       </div>
 
       {/* 빠른 메뉴 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Link href="/advertiser-studio/compositions">
+          <div className="group relative border border-border rounded-xl p-6 hover:border-yellow-500 hover:bg-yellow-500/5 transition cursor-pointer">
+            <ClipboardCheck className="h-8 w-8 text-yellow-500 mb-3" />
+            <h3 className="font-semibold text-lg">합성 영상 검토</h3>
+            <p className="text-sm text-muted-foreground mt-1">내 광고가 삽입된 합성 결과를 미리 보고 승인 또는 거절합니다</p>
+            <div className="flex items-center gap-1 text-yellow-500 text-sm mt-3 group-hover:gap-2 transition-all">
+              검토하기 <ArrowRight className="h-4 w-4" />
+            </div>
+            {stats.pendingReview > 0 && (
+              <span className="absolute top-4 right-4 flex h-5 w-5 items-center justify-center rounded-full bg-yellow-500 text-[10px] font-bold text-black">
+                {stats.pendingReview > 99 ? '99+' : stats.pendingReview}
+              </span>
+            )}
+          </div>
+        </Link>
         <Link href="/advertiser-studio/upload">
           <div className="group border border-border rounded-xl p-6 hover:border-yellow-500 hover:bg-yellow-500/5 transition cursor-pointer">
             <Upload className="h-8 w-8 text-yellow-500 mb-3" />
