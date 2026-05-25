@@ -11,6 +11,7 @@ import {
   X,
   Megaphone,
   LogOut,
+  ClipboardCheck,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -58,6 +59,7 @@ export default function AdvertiserStudioLayout({
 
   const navigation = [
     { name: '대시보드', href: '/advertiser-studio', icon: LayoutDashboard },
+    { name: '합성 영상 검토', href: '/advertiser-studio/compositions', icon: ClipboardCheck },
     { name: '광고 영상 관리', href: '/advertiser-studio/videos', icon: Video },
     { name: '영상 업로드', href: '/advertiser-studio/upload', icon: Upload },
   ]
