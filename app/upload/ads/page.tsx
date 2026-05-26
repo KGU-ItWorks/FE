@@ -23,15 +23,14 @@ interface AdMarker {
 }
 
 const AD_CATEGORIES = [
-  { value: "laptop",      label: "노트북",    color: "bg-blue-500"   },
-  { value: "chair",       label: "의자",      color: "bg-purple-500" },
-  { value: "smartphone",  label: "스마트폰",  color: "bg-pink-500"   },
-  { value: "tv",          label: "TV",        color: "bg-orange-500" },
-  { value: "can",         label: "캔",        color: "bg-red-500"    },
-  { value: "bottle",      label: "병",        color: "bg-red-400"    },
-  { value: "snack",       label: "간식",      color: "bg-yellow-500" },
-  { value: "food",        label: "식품",      color: "bg-green-500"  },
-  { value: "beauty",      label: "뷰티",      color: "bg-rose-500"   },
+  { value: "laptop",      label: "노트북",    englishPrompt: "laptop computer",  color: "bg-blue-500"   },
+  { value: "smartphone",  label: "스마트폰",  englishPrompt: "smartphone",       color: "bg-pink-500"   },
+  { value: "tv",          label: "TV",        englishPrompt: "television",       color: "bg-orange-500" },
+  { value: "can",         label: "캔",        englishPrompt: "beverage can",     color: "bg-red-500"    },
+  { value: "bottle",      label: "병",        englishPrompt: "bottle",     color: "bg-red-400"    },
+  { value: "snack",       label: "간식",      englishPrompt: "snack food",       color: "bg-yellow-500" },
+  { value: "food",        label: "식품",      englishPrompt: "food",             color: "bg-green-500"  },
+  { value: "beauty",      label: "뷰티",      englishPrompt: "beauty product",   color: "bg-rose-500"   },
 ]
 
 /** M:SS  →  e.g.  "1:23" */
@@ -138,13 +137,13 @@ function AdSetupContent() {
         const startTime       = Math.round(Math.min(newMarkerStart, t))
         const endTime         = Math.round(Math.max(newMarkerStart, t))
         const defaultCategory = "laptop"
-        const defaultLabel    = AD_CATEGORIES.find(c => c.value === defaultCategory)?.label ?? defaultCategory
+        const defaultEnglish  = AD_CATEGORIES.find(c => c.value === defaultCategory)?.englishPrompt ?? defaultCategory
         const newMarker: AdMarker = {
           id: Date.now().toString(),
           startTime,
           endTime,
           category: defaultCategory,
-          prompt:   defaultLabel,
+          prompt:   defaultEnglish,
         }
         setAdMarkers(prev => [...prev, newMarker])
         setNewMarkerStart(null)
@@ -160,14 +159,21 @@ function AdSetupContent() {
 
   // ── Marker edits ──────────────────────────────────────────────────────────
   const handleMarkerCategoryChange = (markerId: string, category: string) => {
-    const label = AD_CATEGORIES.find(c => c.value === category)?.label ?? category
+    const englishPrompt = AD_CATEGORIES.find(c => c.value === category)?.englishPrompt ?? category
     setAdMarkers(prev =>
-      prev.map(m => m.id === markerId ? { ...m, category, prompt: label } : m)
+      prev.map(m => m.id === markerId ? { ...m, category, prompt: englishPrompt } : m)
     )
   }
 
-  const handleMarkerPromptChange = (markerId: string, prompt: string) => {
-    setAdMarkers(prev => prev.map(m => m.id === markerId ? { ...m, prompt } : m))
+  const handleMarkerPromptChange = (markerId: string, raw: string) => {
+    // Strip non-English characters — allow only a-z, A-Z, and spaces
+    const cleaned = raw.replace(/[^a-zA-Z ]/g, '')
+    // Count non-empty words
+    const words = cleaned.trim().split(/\s+/).filter(Boolean)
+    // Cap at 3 words; don't allow trailing space when already at 3 words
+    let limited = words.length > 3 ? words.slice(0, 3).join(' ') : cleaned
+    if (words.length >= 3) limited = limited.trimEnd()
+    setAdMarkers(prev => prev.map(m => m.id === markerId ? { ...m, prompt: limited } : m))
   }
 
   const handleMarkerTimeChange = (
@@ -540,11 +546,14 @@ function AdSetupContent() {
                             className="space-y-1.5 mb-3"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <Label className="text-xs">AI 프롬프트 <span className="text-destructive">*</span></Label>
+                            <Label className="text-xs">
+                              AI 프롬프트 <span className="text-destructive">*</span>
+                              <span className="ml-1 text-muted-foreground font-normal">(영어 · 최대 3단어)</span>
+                            </Label>
                             <textarea
                               value={marker.prompt}
                               onChange={(e) => handleMarkerPromptChange(marker.id, e.target.value)}
-                              placeholder="합성할 객체를 구체적으로 입력하세요&#10;예: 빨간색 맥북 프로, 은색 캔 음료"
+                              placeholder="영어로 입력하세요 (최대 3단어)&#10;예: red laptop, silver can"
                               rows={2}
                               className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             />
