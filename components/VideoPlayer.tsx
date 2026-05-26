@@ -147,16 +147,24 @@ export default function VideoPlayer({
         }
         .video-js .vjs-control-bar {
           background: linear-gradient(to top, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0) 100%);
-          height: 4em;
-          padding: 0 1em;
+          display: flex !important;
+          flex-direction: row !important;
+          flex-wrap: nowrap !important;
+          align-items: center !important;
+          height: 3.5em;
+          padding: 0 0.8em;
+          overflow: visible;
         }
         .video-js .vjs-progress-control {
-          position: absolute;
-          bottom: 3em;
-          left: 0;
-          right: 0;
-          width: 100%;
-          height: 0.5em;
+          position: absolute !important;
+          bottom: 3.5em !important;
+          left: 0 !important;
+          right: 0 !important;
+          width: 100% !important;
+          height: 1em !important;
+          flex: none !important;
+          padding: 0.2em 0.5em;
+          box-sizing: border-box;
         }
         .video-js .vjs-progress-holder {
           height: 0.3em;
@@ -231,9 +239,10 @@ export default function VideoPlayer({
           }
           .video-js .vjs-control-bar {
             height: 3em;
+            padding: 0 0.5em;
           }
           .video-js .vjs-progress-control {
-            bottom: 2.5em;
+            bottom: 3em !important;
           }
         }
       `;
