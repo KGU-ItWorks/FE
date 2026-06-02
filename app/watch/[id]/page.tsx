@@ -5,8 +5,16 @@ import { useRouter, useSearchParams } from "next/navigation";
 import VideoPlayer from "@/components/VideoPlayer";
 import { videoApi, favoritesApi, toMediaUrl } from "@/lib/api";
 import { apiClient } from "@/lib/api-client";
-import { ArrowLeft, ThumbsUp, ThumbsDown, Heart, Volume2 } from "lucide-react";
+import { ArrowLeft, ThumbsUp, ThumbsDown, Heart, Volume2, X, Info } from "lucide-react";
 import { formatDuration } from "@/lib/format";
+
+interface AdInfo {
+  hasAd: boolean;
+  adVideoId: number | null;
+  advertiserName: string | null;
+  description: string | null;
+  nukiImageUrl: string | null;
+}
 
 // API 데이터 구조에 맞춰 string | null 허용
 interface Video {
@@ -48,6 +56,9 @@ export default function WatchPage({
   const [relatedVideos, setRelatedVideos] = useState<Video[]>([]);
   const [isFavorited, setIsFavorited] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
+  const [adInfo, setAdInfo] = useState<AdInfo | null>(null);
+  const [showAdBanner, setShowAdBanner] = useState(true);
+  const [showAdModal, setShowAdModal] = useState(false);
   const activeVideoIdRef = useRef<number | null>(null);
   const toggleRequestIdRef = useRef(0);
 
@@ -84,6 +95,9 @@ export default function WatchPage({
 
     if (!isNaN(videoId)) {
       setIsFavorited(false);
+      setAdInfo(null);
+      setShowAdBanner(true);
+      setShowAdModal(false);
       fetchVideo();
       favoritesApi.check(videoId)
           .then((res) => {
@@ -91,6 +105,13 @@ export default function WatchPage({
         }).catch(() => {
           if (!cancelled) setIsFavorited(false);
         });
+      apiClient.get<AdInfo>(`/api/v1/video-compositions/${videoId}/ad-info`)
+          .then((res) => {
+            if (!cancelled && res.hasAd) {
+              setAdInfo(res);
+              setTimeout(() => { if (!cancelled) setShowAdBanner(false); }, 20000);
+            }
+          }).catch(() => {});
     }
     return () => {
       cancelled = true;
@@ -183,7 +204,83 @@ export default function WatchPage({
               poster={toMediaUrl(video.thumbnailUrl) || undefined}
               autoplay={autoplay}
           />
+
+          {/* 유료 광고 포함 배너 */}
+          {adInfo?.hasAd && showAdBanner && (
+            <div className="absolute top-4 right-4 z-40 flex items-center gap-2 bg-black/80 border border-white/10 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-full animate-in fade-in slide-in-from-top-2 duration-500">
+              <Info className="h-3 w-3 text-gray-300 shrink-0" />
+              <button
+                onClick={() => setShowAdModal(true)}
+                className="hover:underline underline-offset-2"
+              >
+                유료 광고 포함
+              </button>
+              <button
+                onClick={() => setShowAdBanner(false)}
+                className="text-gray-500 hover:text-white transition ml-1"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          )}
         </div>
+
+        {/* 광고 정보 모달 */}
+        {showAdModal && adInfo && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+            onClick={() => setShowAdModal(false)}
+          >
+            <div
+              className="relative bg-zinc-900 rounded-2xl max-w-md w-full overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Red accent top border */}
+              <div className="h-1 w-full bg-red-600" />
+
+              <div className="p-5">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-white font-bold text-base">유료 광고 포함</h2>
+                  <button
+                    onClick={() => setShowAdModal(false)}
+                    className="text-gray-500 hover:text-white transition"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {/* Horizontal layout — image left, info right */}
+                <div className="flex gap-4 items-center">
+                  {adInfo.nukiImageUrl && (
+                    <div
+                      className="rounded-xl overflow-hidden shrink-0 w-32 h-32 flex items-center justify-center"
+                      style={{ backgroundColor: '#18181b' }}
+                    >
+                      <img
+                        src={adInfo.nukiImageUrl}
+                        alt="광고 상품"
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex flex-col gap-2 min-w-0">
+                    {adInfo.advertiserName && (
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-red-600/20 text-red-400 border border-red-600/30 w-fit">
+                        광고주 · <span className="text-red-300">{adInfo.advertiserName}</span>
+                      </span>
+                    )}
+
+                    {adInfo.description && (
+                      <p className="text-gray-400 text-xs leading-relaxed line-clamp-3">{adInfo.description}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="fixed top-6 left-6 z-50">
           <button
