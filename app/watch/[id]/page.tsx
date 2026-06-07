@@ -58,7 +58,7 @@ export default function WatchPage({
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [adInfo, setAdInfo] = useState<AdInfo | null>(null);
   const [showAdBanner, setShowAdBanner] = useState(true);
-  const [showAdModal, setShowAdModal] = useState(false);
+  const [showAdPanel, setShowAdPanel] = useState(false);
   const activeVideoIdRef = useRef<number | null>(null);
   const toggleRequestIdRef = useRef(0);
 
@@ -97,7 +97,7 @@ export default function WatchPage({
       setIsFavorited(false);
       setAdInfo(null);
       setShowAdBanner(true);
-      setShowAdModal(false);
+      setShowAdPanel(false);
       fetchVideo();
       favoritesApi.check(videoId)
           .then((res) => {
@@ -207,13 +207,13 @@ export default function WatchPage({
 
           {/* 유료 광고 포함 배너 */}
           {adInfo?.hasAd && showAdBanner && (
-            <div className="absolute top-4 right-4 z-40 flex items-center gap-2 bg-black/80 border border-white/10 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-full animate-in fade-in slide-in-from-top-2 duration-500">
-              <Info className="h-3 w-3 text-gray-300 shrink-0" />
+            <div className="absolute top-4 right-4 z-40 flex items-center gap-2 bg-black/80 border border-white/10 backdrop-blur-sm text-white text-sm px-5 py-2.5 rounded-full animate-in fade-in slide-in-from-top-2 duration-500">
+              <Info className="h-4 w-4 text-gray-300 shrink-0" />
               <button
-                onClick={() => setShowAdModal(true)}
-                className="hover:underline underline-offset-2"
+                onClick={() => setShowAdPanel(true)}
+                className="hover:underline underline-offset-2 font-medium"
               >
-                유료 광고 포함
+                AI 광고 포함
               </button>
               <button
                 onClick={() => setShowAdBanner(false)}
@@ -225,57 +225,50 @@ export default function WatchPage({
           )}
         </div>
 
-        {/* 광고 정보 모달 */}
-        {showAdModal && adInfo && (
+        {/* 광고 정보 사이드 패널 */}
+        {adInfo?.hasAd && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
-            onClick={() => setShowAdModal(false)}
+            className={`fixed top-0 right-0 h-full w-80 z-50 bg-zinc-900 border-l border-white/10 shadow-2xl flex flex-col transition-transform duration-300 ease-in-out ${
+              showAdPanel ? 'translate-x-0' : 'translate-x-full'
+            }`}
           >
-            <div
-              className="relative bg-zinc-900 rounded-2xl max-w-md w-full overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Red accent top border */}
-              <div className="h-1 w-full bg-red-600" />
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+              <h2 className="text-white font-bold text-base">AI 광고 포함</h2>
+              <button
+                onClick={() => setShowAdPanel(false)}
+                className="text-gray-500 hover:text-white transition"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
 
-              <div className="p-5">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-white font-bold text-base">유료 광고 포함</h2>
-                  <button
-                    onClick={() => setShowAdModal(false)}
-                    className="text-gray-500 hover:text-white transition"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
+            {/* Ad notice */}
+            <p className="text-gray-400 text-xs px-5 pt-4 pb-2">
+              채널이(가) 태그된 제품에 대해 수수료를 받습니다.
+            </p>
 
-                {/* Horizontal layout — image left, info right */}
-                <div className="flex gap-4 items-center">
-                  {adInfo.nukiImageUrl && (
-                    <div
-                      className="rounded-xl overflow-hidden shrink-0 w-32 h-32 flex items-center justify-center"
-                      style={{ backgroundColor: '#18181b' }}
-                    >
-                      <img
-                        src={adInfo.nukiImageUrl}
-                        alt="광고 상품"
-                        className="w-full h-full object-contain"
-                      />
-                    </div>
-                  )}
-
-                  <div className="flex flex-col gap-2 min-w-0">
-                    {adInfo.advertiserName && (
-                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-red-600/20 text-red-400 border border-red-600/30 w-fit">
-                        광고주 · <span className="text-red-300">{adInfo.advertiserName}</span>
-                      </span>
-                    )}
-
-                    {adInfo.description && (
-                      <p className="text-gray-400 text-xs leading-relaxed line-clamp-3">{adInfo.description}</p>
-                    )}
+            {/* Ad card */}
+            <div className="px-4 py-3">
+              <div className="bg-zinc-800 rounded-xl overflow-hidden">
+                {adInfo.nukiImageUrl && (
+                  <div className="w-full aspect-video bg-zinc-700 flex items-center justify-center">
+                    <img
+                      src={toMediaUrl(adInfo.nukiImageUrl) ?? ''}
+                      alt="광고 상품"
+                      className="w-full h-full object-contain"
+                    />
                   </div>
+                )}
+                <div className="p-4 flex flex-col gap-2">
+                  {adInfo.advertiserName && (
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-red-600/20 text-red-400 border border-red-600/30 w-fit">
+                      광고주 · <span className="text-red-300">{adInfo.advertiserName}</span>
+                    </span>
+                  )}
+                  {adInfo.description && (
+                    <p className="text-white text-sm font-medium leading-snug">{adInfo.description}</p>
+                  )}
                 </div>
               </div>
             </div>
