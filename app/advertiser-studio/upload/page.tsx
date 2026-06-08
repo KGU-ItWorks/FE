@@ -6,12 +6,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
-import { Upload, Video, Loader2, Tag } from 'lucide-react'
+import { Upload, Video, Loader2, Tag, Image } from 'lucide-react'
 
 export default function AdvertiserStudioUploadPage() {
   const router = useRouter()
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const imageInputRef = useRef<HTMLInputElement>(null)
 
 const CATEGORIES = [
   { value: 'FASHION',     label: '패션 (의류·신발·가방)' },
@@ -30,8 +31,10 @@ const CATEGORIES = [
   const [description, setDescription] = useState('')
   const [objectCategory, setObjectCategory] = useState('')
   const [videoFile, setVideoFile] = useState<File | null>(null)
+  const [adImageFile, setAdImageFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [dragOver, setDragOver] = useState(false)
+  const [imageDragOver, setImageDragOver] = useState(false)
 
   const handleFileSelect = (file: File) => {
     if (!file.type.startsWith('video/')) {
@@ -41,11 +44,26 @@ const CATEGORIES = [
     setVideoFile(file)
   }
 
+  const handleImageSelect = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast({ title: '파일 오류', description: '이미지 파일만 업로드할 수 있습니다', variant: 'destructive' })
+      return
+    }
+    setAdImageFile(file)
+  }
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
     setDragOver(false)
     const file = e.dataTransfer.files[0]
     if (file) handleFileSelect(file)
+  }
+
+  const handleImageDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setImageDragOver(false)
+    const file = e.dataTransfer.files[0]
+    if (file) handleImageSelect(file)
   }
 
   const handleSubmit = async () => {
@@ -61,6 +79,10 @@ const CATEGORIES = [
       toast({ title: '파일 오류', description: '영상 파일을 선택해주세요', variant: 'destructive' })
       return
     }
+    if (!adImageFile) {
+      toast({ title: '파일 오류', description: '광고 이미지를 선택해주세요', variant: 'destructive' })
+      return
+    }
 
     try {
       setUploading(true)
@@ -69,6 +91,7 @@ const CATEGORIES = [
       const formData = new FormData()
       formData.append('request', new Blob([JSON.stringify({ title, description, objectCategory })], { type: 'application/json' }))
       formData.append('videoFile', videoFile)
+      formData.append('adImageFile', adImageFile)
 
       const response = await fetch(`${baseUrl}/api/v1/advertiser/videos`, {
         method: 'POST',
@@ -102,7 +125,7 @@ const CATEGORIES = [
         <p className="text-muted-foreground mt-1">업로드 후 AI가 자동으로 영상 속 물체의 누끼를 추출합니다</p>
       </div>
 
-      {/* 파일 업로드 영역 */}
+      {/* 영상 파일 업로드 영역 */}
       <div
         className={`border-2 border-dashed rounded-xl p-10 text-center transition-colors cursor-pointer
           ${dragOver ? 'border-yellow-500 bg-yellow-500/5' : 'border-border hover:border-yellow-500/50'}
@@ -136,6 +159,47 @@ const CATEGORIES = [
             <p className="text-sm text-muted-foreground mt-1">MP4, MOV, AVI 등 영상 파일</p>
           </div>
         )}
+      </div>
+
+      {/* 광고 이미지 업로드 영역 */}
+      <div>
+        <label className="block text-sm font-medium mb-2">
+          광고 이미지 <span className="text-red-500">*</span>
+        </label>
+        <div
+          className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer
+            ${imageDragOver ? 'border-yellow-500 bg-yellow-500/5' : 'border-border hover:border-yellow-500/50'}
+            ${adImageFile ? 'border-green-500 bg-green-500/5' : ''}`}
+          onClick={() => imageInputRef.current?.click()}
+          onDragOver={(e) => { e.preventDefault(); setImageDragOver(true) }}
+          onDragLeave={() => setImageDragOver(false)}
+          onDrop={handleImageDrop}
+        >
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => e.target.files?.[0] && handleImageSelect(e.target.files[0])}
+          />
+          {adImageFile ? (
+            <div>
+              <Image className="h-10 w-10 mx-auto mb-3 text-green-500" />
+              <p className="font-semibold text-green-600">{adImageFile.name}</p>
+              <p className="text-sm text-muted-foreground mt-1">{formatFileSize(adImageFile.size)}</p>
+              <Button variant="outline" size="sm" className="mt-3"
+                onClick={(e) => { e.stopPropagation(); setAdImageFile(null) }}>
+                파일 변경
+              </Button>
+            </div>
+          ) : (
+            <div>
+              <Image className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
+              <p className="font-semibold">광고에 사용할 이미지를 업로드하세요</p>
+              <p className="text-sm text-muted-foreground mt-1">JPG, PNG, WEBP 등 이미지 파일</p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 영상 정보 */}
@@ -185,7 +249,7 @@ const CATEGORIES = [
 
       <Button
         onClick={handleSubmit}
-        disabled={uploading || !videoFile || !title.trim() || !objectCategory}
+        disabled={uploading || !videoFile || !adImageFile || !title.trim() || !objectCategory}
         className="w-full bg-yellow-500 text-black hover:bg-yellow-400 font-semibold"
         size="lg"
       >
