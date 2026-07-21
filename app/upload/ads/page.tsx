@@ -7,31 +7,46 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { BrowseHeader } from "@/components/browse-header"
-import { Play, Pause, Plus, Trash2, Loader2 } from "lucide-react"
+import { Play, Pause, Plus, Trash2, Loader2, SquareDashedMousePointer } from "lucide-react"
 import Link from "next/link"
 import { apiClient } from "@/lib/api-client"
 import { videoApi, toMediaUrl, type Video } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 import { addPendingComposition } from "@/hooks/use-composition-notifier"
 
+/** 정규화(0~1) 좌표의 바운딩 박스. (x, y)는 좌상단, width/height는 비율. */
+interface BoundingBox {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 interface AdMarker {
   id: string
   startTime: number
   endTime: number
-  category: string
-  prompt: string
+  box: BoundingBox | null
 }
 
-const AD_CATEGORIES = [
-  { value: "laptop",      label: "노트북",    englishPrompt: "laptop computer",  color: "bg-blue-500"   },
-  { value: "smartphone",  label: "스마트폰",  englishPrompt: "smartphone",       color: "bg-pink-500"   },
-  { value: "tv",          label: "TV",        englishPrompt: "television",       color: "bg-orange-500" },
-  { value: "can",         label: "캔",        englishPrompt: "beverage can",     color: "bg-red-500"    },
-  { value: "bottle",      label: "병",        englishPrompt: "bottle",     color: "bg-red-400"    },
-  { value: "snack",       label: "간식",      englishPrompt: "snack food",       color: "bg-yellow-500" },
-  { value: "food",        label: "식품",      englishPrompt: "food",             color: "bg-green-500"  },
-  { value: "beauty",      label: "뷰티",      englishPrompt: "beauty product",   color: "bg-rose-500"   },
+/** 마커 색상 팔레트 — 인덱스 기준 순환 */
+const MARKER_COLORS = [
+  "bg-blue-500", "bg-pink-500", "bg-orange-500", "bg-red-500",
+  "bg-green-500", "bg-purple-500", "bg-yellow-500", "bg-cyan-500",
 ]
+const markerColor = (index: number) => MARKER_COLORS[index % MARKER_COLORS.length]
+
+/** 정규화 좌표 반올림 (소수점 4자리) */
+const round4 = (n: number) => Math.round(n * 10000) / 10000
+
+/** 초 → "HH:MM:SS" */
+const toHhmmss = (seconds: number) => {
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  const s = Math.floor(seconds % 60)
+  const pad = (n: number) => String(n).padStart(2, "0")
+  return `${pad(h)}:${pad(m)}:${pad(s)}`
+}
 
 /** M:SS  →  e.g.  "1:23" */
 const formatTime = (seconds: number) => {
@@ -75,8 +90,14 @@ function AdSetupContent() {
   const [hoverTime,      setHoverTime]      = useState<number | null>(null)
   const [submitting,     setSubmitting]     = useState(false)
 
+  // ── Box drawing state ───────────────────────────────────────────────────────
+  const [drawingBox,  setDrawingBox]  = useState(false)
+  const [dragStart,   setDragStart]   = useState<{ x: number; y: number } | null>(null)
+  const [dragCurrent, setDragCurrent] = useState<{ x: number; y: number } | null>(null)
+
   const videoRef    = useRef<HTMLVideoElement>(null)
   const timelineRef = useRef<HTMLDivElement>(null)
+  const videoBoxRef = useRef<HTMLDivElement>(null)
 
   // ── Video load ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -126,6 +147,11 @@ function AdSetupContent() {
   const handleTimelineMouseMove  = (e: React.MouseEvent<HTMLDivElement>) => setHoverTime(getTimeFromEvent(e))
   const handleTimelineMouseLeave = () => setHoverTime(null)
 
+  const seekTo = (t: number) => {
+    if (videoRef.current) videoRef.current.currentTime = t
+    setCurrentTime(t)
+  }
+
   const handleTimelineClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const t = getTimeFromEvent(e)
     if (t === null) return
@@ -134,46 +160,41 @@ function AdSetupContent() {
       if (newMarkerStart === null) {
         setNewMarkerStart(t)
       } else {
-        const startTime       = Math.round(Math.min(newMarkerStart, t))
-        const endTime         = Math.round(Math.max(newMarkerStart, t))
-        const defaultCategory = "laptop"
-        const defaultEnglish  = AD_CATEGORIES.find(c => c.value === defaultCategory)?.englishPrompt ?? defaultCategory
+        const startTime = Math.round(Math.min(newMarkerStart, t))
+        const endTime   = Math.round(Math.max(newMarkerStart, t))
         const newMarker: AdMarker = {
           id: Date.now().toString(),
           startTime,
           endTime,
-          category: defaultCategory,
-          prompt:   defaultEnglish,
+          box: null,
         }
         setAdMarkers(prev => [...prev, newMarker])
         setNewMarkerStart(null)
         setIsAddingMarker(false)
         setSelectedMarker(newMarker.id)
+        seekTo(startTime)
       }
     } else {
-      // Seek video
-      if (videoRef.current) videoRef.current.currentTime = t
-      setCurrentTime(t)
+      seekTo(t)
     }
   }
 
-  // ── Marker edits ──────────────────────────────────────────────────────────
-  const handleMarkerCategoryChange = (markerId: string, category: string) => {
-    const englishPrompt = AD_CATEGORIES.find(c => c.value === category)?.englishPrompt ?? category
-    setAdMarkers(prev =>
-      prev.map(m => m.id === markerId ? { ...m, category, prompt: englishPrompt } : m)
-    )
+  // ── Marker selection / edits ────────────────────────────────────────────────
+  const selectMarker = (id: string) => {
+    setSelectedMarker(id)
+    setDrawingBox(false)
+    setDragStart(null)
+    setDragCurrent(null)
+    const m = adMarkers.find(mk => mk.id === id)
+    if (m) seekTo(m.startTime)
   }
 
-  const handleMarkerPromptChange = (markerId: string, raw: string) => {
-    // Strip non-English characters — allow only a-z, A-Z, and spaces
-    const cleaned = raw.replace(/[^a-zA-Z ]/g, '')
-    // Count non-empty words
-    const words = cleaned.trim().split(/\s+/).filter(Boolean)
-    // Cap at 3 words; don't allow trailing space when already at 3 words
-    let limited = words.length > 3 ? words.slice(0, 3).join(' ') : cleaned
-    if (words.length >= 3) limited = limited.trimEnd()
-    setAdMarkers(prev => prev.map(m => m.id === markerId ? { ...m, prompt: limited } : m))
+  const handleDeleteMarker = (markerId: string) => {
+    setAdMarkers(prev => prev.filter(m => m.id !== markerId))
+    if (selectedMarker === markerId) {
+      setSelectedMarker(null)
+      setDrawingBox(false)
+    }
   }
 
   const handleMarkerTimeChange = (
@@ -197,10 +218,81 @@ function AdSetupContent() {
     )
   }
 
-  const handleDeleteMarker = (markerId: string) => {
-    setAdMarkers(prev => prev.filter(m => m.id !== markerId))
-    if (selectedMarker === markerId) setSelectedMarker(null)
+  // ── Box drawing ─────────────────────────────────────────────────────────────
+  const startDrawingFor = (markerId: string) => {
+    selectMarker(markerId)
+    setDrawingBox(true)
+    setDragStart(null)
+    setDragCurrent(null)
   }
+
+  const clearBox = (markerId: string) => {
+    setAdMarkers(prev => prev.map(m => m.id === markerId ? { ...m, box: null } : m))
+  }
+
+  const normFromEvent = (e: React.MouseEvent<HTMLDivElement>): { x: number; y: number } | null => {
+    const el = videoBoxRef.current
+    if (!el) return null
+    const rect = el.getBoundingClientRect()
+    if (rect.width <= 0 || rect.height <= 0) return null
+    return {
+      x: Math.max(0, Math.min((e.clientX - rect.left) / rect.width, 1)),
+      y: Math.max(0, Math.min((e.clientY - rect.top) / rect.height, 1)),
+    }
+  }
+
+  const handleBoxMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!drawingBox) return
+    const p = normFromEvent(e)
+    if (!p) return
+    setDragStart(p)
+    setDragCurrent(p)
+  }
+
+  const handleBoxMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!drawingBox || !dragStart) return
+    setDragCurrent(normFromEvent(e))
+  }
+
+  const handleBoxMouseUp = () => {
+    if (!drawingBox || !dragStart || !dragCurrent || !selectedMarker) {
+      setDragStart(null)
+      setDragCurrent(null)
+      return
+    }
+    const x      = Math.min(dragStart.x, dragCurrent.x)
+    const y      = Math.min(dragStart.y, dragCurrent.y)
+    const width  = Math.abs(dragCurrent.x - dragStart.x)
+    const height = Math.abs(dragCurrent.y - dragStart.y)
+
+    // Ignore accidental clicks / too-small boxes
+    if (width < 0.01 || height < 0.01) {
+      setDragStart(null)
+      setDragCurrent(null)
+      return
+    }
+
+    const box: BoundingBox = {
+      x: round4(x), y: round4(y), width: round4(width), height: round4(height),
+    }
+    setAdMarkers(prev => prev.map(m => m.id === selectedMarker ? { ...m, box } : m))
+    setDrawingBox(false)
+    setDragStart(null)
+    setDragCurrent(null)
+  }
+
+  // Box shown on the video: live drag preview, else the selected marker's saved box
+  const previewBox: BoundingBox | null = (() => {
+    if (drawingBox && dragStart && dragCurrent) {
+      return {
+        x: Math.min(dragStart.x, dragCurrent.x),
+        y: Math.min(dragStart.y, dragCurrent.y),
+        width: Math.abs(dragCurrent.x - dragStart.x),
+        height: Math.abs(dragCurrent.y - dragStart.y),
+      }
+    }
+    return adMarkers.find(m => m.id === selectedMarker)?.box ?? null
+  })()
 
   // ── Submit ────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
@@ -217,9 +309,10 @@ function AdSetupContent() {
       toast({ title: "오류", description: "광고 구간을 하나 이상 추가해주세요.", variant: "destructive" })
       return
     }
-    const emptyPrompt = adMarkers.find(m => !m.prompt.trim())
-    if (emptyPrompt) {
-      toast({ title: "오류", description: "모든 구간에 AI 프롬프트를 입력해주세요.", variant: "destructive" })
+    const missingBox = adMarkers.find(m => !m.box)
+    if (missingBox) {
+      toast({ title: "오류", description: "모든 구간에 객체 영역(박스)을 지정해주세요.", variant: "destructive" })
+      setSelectedMarker(missingBox.id)
       return
     }
 
@@ -227,13 +320,13 @@ function AdSetupContent() {
       setSubmitting(true)
       const results = await Promise.allSettled(
         adMarkers.map(async (marker) => {
-          const h = Math.floor(marker.startTime / 3600)
-          const m = Math.floor((marker.startTime % 3600) / 60)
-          const s = Math.floor(marker.startTime % 60)
-          const startTimeFormatted = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
-          const durationSecs       = Math.round(marker.endTime - marker.startTime)
           const data = await apiClient.post<{ compositionId: number }>(
-            `/api/v1/video-compositions/${parsedId}/ai-fetch?startTime=${startTimeFormatted}&duration=${durationSecs}&objectPrompt=${encodeURIComponent(marker.prompt || marker.category)}`
+            `/api/v1/video-compositions/${parsedId}/ai-fetch`,
+            {
+              startTime:   toHhmmss(marker.startTime),
+              duration:    Math.round(marker.endTime - marker.startTime),
+              boundingBox: marker.box,
+            }
           )
           addPendingComposition({
             compositionId: data.compositionId,
@@ -301,21 +394,54 @@ function AdSetupContent() {
                       </div>
                     </div>
                   )}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-16 w-16 rounded-full bg-black/50 hover:bg-black/70"
-                      onClick={() => {
-                        if (!videoRef.current) return
-                        isPlaying ? videoRef.current.pause() : videoRef.current.play()
-                      }}
-                    >
-                      {isPlaying
-                        ? <Pause className="h-8 w-8" />
-                        : <Play  className="h-8 w-8" fill="currentColor" />}
-                    </Button>
+
+                  {/* Box drawing layer — interactive only while drawing */}
+                  <div
+                    ref={videoBoxRef}
+                    className={`absolute inset-0 ${drawingBox ? "cursor-crosshair" : "pointer-events-none"}`}
+                    onMouseDown={handleBoxMouseDown}
+                    onMouseMove={handleBoxMouseMove}
+                    onMouseUp={handleBoxMouseUp}
+                    onMouseLeave={handleBoxMouseUp}
+                  >
+                    {previewBox && (
+                      <div
+                        className="absolute border-2 border-yellow-400 bg-yellow-400/20 pointer-events-none"
+                        style={{
+                          left:   `${previewBox.x * 100}%`,
+                          top:    `${previewBox.y * 100}%`,
+                          width:  `${previewBox.width * 100}%`,
+                          height: `${previewBox.height * 100}%`,
+                        }}
+                      />
+                    )}
                   </div>
+
+                  {/* Drawing hint */}
+                  {drawingBox && (
+                    <div className="absolute left-2 top-2 rounded bg-black/75 px-2 py-1 text-xs text-white pointer-events-none">
+                      드래그하여 객체 영역을 지정하세요
+                    </div>
+                  )}
+
+                  {/* Play/Pause — hidden while drawing so it doesn't block the canvas */}
+                  {!drawingBox && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-16 w-16 rounded-full bg-black/50 hover:bg-black/70 pointer-events-auto"
+                        onClick={() => {
+                          if (!videoRef.current) return
+                          isPlaying ? videoRef.current.pause() : videoRef.current.play()
+                        }}
+                      >
+                        {isPlaying
+                          ? <Pause className="h-8 w-8" />
+                          : <Play  className="h-8 w-8" fill="currentColor" />}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -383,21 +509,20 @@ function AdSetupContent() {
                     </div>
 
                     {/* Ad marker blocks */}
-                    {adMarkers.map((marker) => {
+                    {adMarkers.map((marker, index) => {
                       const startPct = (marker.startTime / duration) * 100
                       const widthPct = ((marker.endTime - marker.startTime) / duration) * 100
-                      const cat      = AD_CATEGORIES.find(c => c.value === marker.category)
                       return (
                         <div
                           key={marker.id}
-                          className={`absolute top-0 h-full cursor-pointer border-2 ${cat?.color ?? "bg-gray-500"} opacity-60 transition-opacity hover:opacity-80 ${
+                          className={`absolute top-0 h-full cursor-pointer border-2 ${markerColor(index)} opacity-60 transition-opacity hover:opacity-80 ${
                             selectedMarker === marker.id ? "ring-2 ring-white ring-offset-1 opacity-80" : ""
                           }`}
                           style={{
                             left:  `${startPct}%`,
                             width: `${Math.max(widthPct, 0.4)}%`,
                           }}
-                          onClick={(e) => { e.stopPropagation(); setSelectedMarker(marker.id) }}
+                          onClick={(e) => { e.stopPropagation(); selectMarker(marker.id) }}
                         />
                       )
                     })}
@@ -475,8 +600,7 @@ function AdSetupContent() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {adMarkers.map((marker) => {
-                      const cat      = AD_CATEGORIES.find(c => c.value === marker.category)
+                    {adMarkers.map((marker, index) => {
                       const segDur   = marker.endTime - marker.startTime
                       const selected = selectedMarker === marker.id
 
@@ -488,7 +612,7 @@ function AdSetupContent() {
                               ? "border-primary bg-primary/5"
                               : "border-border bg-background hover:bg-muted/50"
                           }`}
-                          onClick={() => setSelectedMarker(marker.id)}
+                          onClick={() => selectMarker(marker.id)}
                         >
                           {/* Time row */}
                           <div className="flex items-start justify-between gap-2 mb-3">
@@ -498,6 +622,7 @@ function AdSetupContent() {
                                 className="flex items-center gap-1 flex-wrap"
                                 onClick={(e) => e.stopPropagation()}
                               >
+                                <span className={`mr-1 inline-block h-2.5 w-2.5 rounded-sm ${markerColor(index)}`} />
                                 <span className="text-xs text-muted-foreground">시작</span>
                                 <input
                                   type="number"
@@ -541,45 +666,44 @@ function AdSetupContent() {
                             </Button>
                           </div>
 
-                          {/* Prompt textarea */}
+                          {/* Object region (bounding box) */}
                           <div
-                            className="space-y-1.5 mb-3"
+                            className="space-y-2"
                             onClick={(e) => e.stopPropagation()}
                           >
                             <Label className="text-xs">
-                              AI 프롬프트 <span className="text-destructive">*</span>
-                              <span className="ml-1 text-muted-foreground font-normal">(영어 · 최대 3단어)</span>
+                              객체 영역 <span className="text-destructive">*</span>
+                              <span className="ml-1 text-muted-foreground font-normal">(영상에서 드래그)</span>
                             </Label>
-                            <textarea
-                              value={marker.prompt}
-                              onChange={(e) => handleMarkerPromptChange(marker.id, e.target.value)}
-                              placeholder="영어로 입력하세요 (최대 3단어)&#10;예: red laptop, silver can"
-                              rows={2}
-                              className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                            />
-                          </div>
 
-                          {/* Category quick-fill */}
-                          <div
-                            className="space-y-1.5"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Label className="text-xs text-muted-foreground">
-                              카테고리 선택 시 프롬프트 자동 입력
-                            </Label>
+                            <div className="text-xs font-mono">
+                              {marker.box ? (
+                                <span className="text-green-600 dark:text-green-500">
+                                  ✓ 지정됨 · x{marker.box.x.toFixed(2)} y{marker.box.y.toFixed(2)} w{marker.box.width.toFixed(2)} h{marker.box.height.toFixed(2)}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">미지정 — 영상에서 영역을 드래그하세요</span>
+                              )}
+                            </div>
+
                             <div className="flex gap-2">
-                              <select
-                                value={marker.category}
-                                onChange={(e) => handleMarkerCategoryChange(marker.id, e.target.value)}
-                                className="flex-1 h-8 rounded-md border border-input bg-background px-2 py-1 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              <Button
+                                size="sm"
+                                variant={drawingBox && selected ? "default" : "outline"}
+                                onClick={() => startDrawingFor(marker.id)}
                               >
-                                {AD_CATEGORIES.map((c) => (
-                                  <option key={c.value} value={c.value}>{c.label}</option>
-                                ))}
-                              </select>
-                              <Badge className={`${cat?.color ?? "bg-gray-500"} text-white shrink-0`}>
-                                {cat?.label}
-                              </Badge>
+                                <SquareDashedMousePointer className="mr-1.5 h-3.5 w-3.5" />
+                                {drawingBox && selected ? "그리는 중..." : marker.box ? "다시 그리기" : "박스 그리기"}
+                              </Button>
+                              {marker.box && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => clearBox(marker.id)}
+                                >
+                                  지우기
+                                </Button>
+                              )}
                             </div>
                           </div>
                         </div>
